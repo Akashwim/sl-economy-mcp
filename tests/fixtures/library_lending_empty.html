@@ -1,0 +1,641 @@
+
+
+
+
+
+
+<!DOCTYPE html>
+
+<html>
+<head><meta charset="utf-8" /><title>
+
+</title>
+
+    <style>
+.footnote {
+    font-size: 0.85rem;         /* smaller text */
+    color: #555;                /* softer text color */
+    font-style: italic;         /* italic for footnote feel */
+    margin-top: 10px;
+    padding-left: 15px;         /* indentation */
+    border-left: 3px solid #ccc;/* subtle left border */
+    line-height: 1.5;           /* improve readability */
+}
+</style>
+    <script type="text/javascript" src="http://code.jquery.com/jquery-latest.js">
+    </script>
+    <script type="text/javascript">
+       
+      
+    </script>
+    <link rel="stylesheet" type="text/css" media="all" href="fancybox/style.css" />
+    <link rel="stylesheet" type="text/css" media="all" href="fancybox/jquery.fancybox.css" />
+    <style type="text/css">
+        .hide {
+            display: inline;
+        }
+    </style>
+
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+    <script type="text/javascript" src="fancybox/jquery.fancybox.js"></script>
+
+    
+    <script type="text/javascript">
+        function validateEmail(email) {
+            var reg = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+            return reg.test(email);
+        }
+
+
+
+        $(document).ready(function () {
+            //$(div_2).hide();
+
+
+            //$(".rating-star-block .star").mouseleave(function () {
+            //    $("#" + $(this).parent().attr('id') + " .star").each(function () {
+            //        $(this).addClass("outline");
+            //        $(this).removeClass("filled");
+            //    });
+            //});
+            //$(".rating-star-block .star").mouseenter(function () {
+            //    var hoverVal = $(this).attr('rating');
+            //    $(this).prevUntil().addClass("filled");
+            //    $(this).addClass("filled");
+            //    $("#RAT").html(hoverVal);
+            //});
+
+            //$(".rating-star-block .star").click(function () {
+
+            //    var v = $(this).attr('rating');
+            //    var id1 = $(this).attr('rating');
+            //    var userID = 'aae';
+
+
+
+            //    $.ajax({
+            //        type: "POST",
+            //        url: "Search_Result.aspx/insertRate",
+            //        data: "{user: '" + userID + "',rate: '" + id1 + "'}",
+            //        contentType: "application/json; charset=utf-8",
+            //        dataType: "json",
+
+
+            //    });
+            //    $("#div_1").show('1000').delay(800).queue(function (n) {
+            //        $(this).hide();
+            //        $(div_2).show();
+            //    });
+
+            //});
+
+
+            $(".modalbox").fancybox();
+            $("#contact").submit(function () { return false; });
+            $("#sendl").addClass("hide");
+
+            $("#ContentPlaceHolder1_send").on("click", function () {
+                $("#sendl").addClass("hide");
+
+
+
+                var emailval = $("#email").val();
+                var msgval = $("#msg").val();
+                var sendername = $("#sendername").val();
+
+
+                var msglen = msgval.length;
+                var mailvalid = validateEmail(emailval);
+                var namelen = sendername.length;
+
+                if (mailvalid == false) {
+                    $("#email").addClass("error");
+                }
+                else if (mailvalid == true) {
+                    $("#email").removeClass("error");
+                }
+
+                if (msglen < 4) {
+                    $("#msg").addClass("error");
+                }
+                else if (msglen >= 4) {
+                    $("#msg").removeClass("error");
+                }
+
+                if (namelen < 4) {
+                    $("#sendername").addClass("error");
+                }
+                else if (namelen >= 4) {
+                    $("#sendername").removeClass("error");
+                }
+
+                if (mailvalid == true && msglen >= 4 && namelen >= 4) {
+                    // if both validate we attempt to send the e-mail
+                    // first we hide the submit btn so the user doesnt click twice
+                    $("#sendl").removeClass("hide");
+                    $("#ContentPlaceHolder1_send").hide();
+
+                    $.ajax({
+                        type: 'POST',
+                        url: "Search_Result.aspx/SendEmailToAdmin",
+                        data: "{'email':'" + emailval + "', 'message':'" + msgval + "', 'sender':'" + sendername + "'}",
+                        contentType: "application/json; charset=utf-8",
+                        dataType: "json",
+                        success: function (response) {
+                            $("#inline").fadeOut("fast", function () {
+                                $(this).before("<p><strong>Success! Your feedback has been sent, thanks :)</strong></p>");
+                                setTimeout("$.fancybox.close()", 1000);
+                            });
+
+                            $("#email").val("");
+                            $("#msg").val("");
+                            $("#sendername").val("");
+
+                            $("#sendl").addClass("hide");
+                            $("#ContentPlaceHolder1_send").show(500);
+
+                        }
+
+
+
+                    });
+
+
+                }
+            });
+        });
+</script>
+
+    <style type="text/css">
+        .rating-star-block .star.outline {
+            background: url("images/star-empty-lg.png") no-repeat scroll 0 0 rgba(0, 0, 0, 0);
+        }
+
+        .rating-star-block .star.filled {
+            background: url("images/star-fill-lg.png") no-repeat scroll 0 0 rgba(0, 0, 0, 0);
+        }
+
+        .rating-star-block .star {
+            color: rgba(0,0,0,0);
+            display: inline-block;
+            height: 24px;
+            overflow: hidden;
+            text-indent: -999em;
+            width: 24px;
+        }
+
+        a {
+            color: #005782;
+            text-decoration: none;
+        }
+
+
+        a1 {
+          color:#006600;
+        }
+
+
+        .trformat {
+            background-color: #E6F2FB;color: #5F9AD7;font-size: medium;line-height: 1.1;font-size: 14px;font-family: Arial;
+        }
+        .c1 {
+            background-color: #C8E2F5;
+            color:#005D93;
+        }
+        .c2 {
+            background-color:#E6F2FB;
+            color:#5F9AD7;
+        }
+        .c3 {
+            border-color: #C8E2F5;
+        }
+         #statTB td, th {
+            border: solid 1px;border-color:#C8E2F5;text-align:center;
+        }
+    </style>
+
+
+
+    <style type="text/css">
+       
+        
+        /*tr1 {
+            border-style: none none solid none; border-bottom-width: thin; border-bottom-color:#005D93;
+            
+        }*/
+        </style>
+
+
+<link href="../../../Styles/EDS.css" rel="stylesheet" type="text/css" /><link href="../../../Styles/mygfonts.css" rel="stylesheet" />
+
+   <style>
+        .footdiv{
+        width:100%;
+        height:auto;
+        background-color:#2D2D37; 
+        bottom: 0px;
+        color:#fff; text-align:center;
+        font-size:medium;
+        font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        position:fixed;
+    }
+    </style>
+
+<link href="/eResearch/WebResource.axd?d=UFtNI0jUl2cm-vcBXOezAg33oYJvC-yteAGZocPgfzk8AcgsXGcHB6ZpnzZIjv3L4baNYuRBf625YjI_eMWPxd4G_8cgXqnpOv0MGruE0UNbm6y1_vvFYDWi2o4TmseC2HlNNdEBGkLEd1rvHNEI-Q2&amp;t=635821619998910786" type="text/css" rel="stylesheet" /></head>
+<body>
+
+    <form method="post" action="./CMB_LendingAndDeposit.aspx" id="form1" enctype="multipart/form-data">
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwUJNDI1MTA1Njc0DxYCHghyZXBvcnRJRAUENjI3N2RkNQeRGgtCaCLP1DNNHRx/JeWqU2BBOj0fg5ZVfSHzppE=" />
+
+
+<script src="/eResearch/ScriptResource.axd?d=ikfEk9Vc6sYZ2pdub4hnGObqTkEb0g2GEkwPFMbpQprtUuKPKbKTaIK5I1iV414mIOHDtceK4ZCSr8WfHdTMTtrbUQwN4NKHLglxS0WiFjag3iYB7i9DW6SKZm6ZMIWwuXd6tLlSH_QftBvdECNhYQ2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script type="text/javascript">
+//<![CDATA[
+if (typeof(Sys) === 'undefined') throw new Error('ASP.NET Ajax client-side framework failed to load.');
+//]]>
+</script>
+
+<script src="/eResearch/ScriptResource.axd?d=_eLvScWLdC9xsw-lQwOaIlBBJo3uerrZ75uO8P0z9pkeEkXwrFATzR9vzWTIx9m5oTYznNruG2Av5Wrq0IocTNuxf-Yv66j4jVfSs7AXx3pzizeDYCdj6hFoJkE4qNektpqAi_TR45VAIuqhXE-Xtg2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=bb_1oZUft6u4wrr99H7YHl2ufI2Hrqk_8BuhutsTccOkGXGPcq6Oe1YsFlAvw_ylXI4hrNdr30ura0anVMpo_7CcIgqEOXRPpInzcnm1bdF6HxOvdaQNz3iENbaHGQHBgUcDdKFqycse0FfYRKuKKg2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=2aj6sdVhBWzdvvv3dCumaTGlOziDgRMteBIPaH-5i2ctKHEWRRrWh_bACN4YYaOGE1lKCT264ltlkIVw-sF7Oj6Dv0-RbgkZ9QYMMF-LnqcAjGeEUUG8zVaITo8Wdj6dy3prkNZ498ilQn25PFTFsg2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=upJAw03r0N0AgUrpIetpZqssjIXiXz090aFOaUZ2qSSn05dVPIXIcyQBcrumt70a-c_e6sCStL4C1M9fVkuCiGnj3elKYmSCsezfM736f9PC9evS09ioGayWv44RQH3cuSmU9_YgcIk_TWp79iEMAQ2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=fQEY8QujHmslabtNvtJql2XB7DQU1KSFI2BiOkMxN1eOozsOKuESNf2GbOsK5JFrnRcaKHJcBPHZixEzkvi4dGZ2e7znsMaacWngStWv4KbUnc6k35G9TiB41-sjVOuejtv8P9lO9v0pR36C9BOzk2IZ1C1gD6Wd4pm4spw_beE1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=kZDjKD7be75OBZ3uVfvbpdfSnWhczconanrEadHEu4ceDZTCIL-a6vk_h9GouUXNB1tZ79oWEAJ3tvdwDjs7lIGK5GmcLRw9VSIHPoaEhDMAar-jsyBJHU0TrV0YoXPsf2Vokd52eSRR2PEJIRjb6ZR_5W0TyYSqdkxiY0guY6x3kKjk1pJvAtPRSRs6_voQ0&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=hSzMnNrcP80AbkJdytrshSod6pCFOUQuKCD1_ihR7MptiEE2lIVxVmYpZd2ovdRd2e43C4BmtyBIZW6jpOglKhlETnYPNI29T_Y_nCroBZX556XmBAMhYIVB3iYfQZ8WxDITs131Yehp2OGVjC3ke_SgMCRoO06OGzxdwNQ0KR1j6VDFStaP8BVNxnP2Cfxs0&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=Q7pJ5UQDmDWvvLJ1DJR0lNjm7d_ysZTaVPqqn7Fd6m6GuQsoWRKoSjXkcq9rxr3gUG0STGJFtGy2yrOtVgpOAjcV5CZLJ3NNu2yhzsKMLmAZ007GejhkEjAppmwHYqgeqPURTrnqyL4HPyPV2wCTFgJi_MQdtfGo0oFUhzQNBTLAx1BhH0Fd_Pur3QVM6k400&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=Nr1ElhTcij58mfX74KK6gdQUzVIjBP7IP1YKFtGcVxar2bBX13EimLlFz6gIemTslqW1ZzQdCfZQt9bikuM2CXuL23ZkDPeuSdACc7YEOsREjGDliNP2tyN5G4-JQSRb02xTWZbgf4zJPQ_qkChXOkkk-_zDZYhhN4b0aupX9pc1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=InF8VBZhUBMF7ZCnIJ0mRiWS2Ctwhne0EUIzzHJd8FQWGWxkyf5i80MOqLjCovZDvTsDrOQ5bOu_yFbVR7c3B43_DfnvepbgWbkWXHYn_66C_jUyZGHgayPHB0qZIKIFWowWqMppZJ4nNt4nbYlcCPwV3v2UV6NHI9z-F28kjXQ1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=IISth8Dxa-PSrODimEQ_kkcRohmw0bEABm7POLWjRc0b47KL6rS2qL8kensvoqQWXy7b15SDuNUKZBN1-nd_nk2CReuNvBtdU4JmgeD7DpPrOX7UFCFoBwlA8b0j0lBg2ejXM3P50bJuLJTSq5CUQmNC2DLt6DGHyvpVXDOoIsA1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=SI73SfVpOi3ugKVA_h9d5HPvSXFsKVgLim5w1-Dph5Rnd43DyYPYDn1GcOpc9fcrehmYqbdk_seYkJyPVw9evndAZIrWV8aMQvO-ugnsd40LV1yrzGLZSXn9n-43wI8Fx8lzM7HgwYB5pCn8TdQVi9EzlojEF4PyWkUad2DRcq41&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=DpHBiQdeRI3f-R7guBctSsGGQkwhIYfNCWifmmAD7zAfII210At8Zc9oTuLkvXxmVbPaP4zv-2FMk3-6vv9z0AiSFt7chVl6tDwlOXRUpma_NCcpq7ORLorq4ug5nFffBobEzXSpMDg0AFghZvfHj9K1U1oU-4FUhT9WHKWqU7Q1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=asdju7jXE571gMVvIkWmooiTgLPtDt7oGEVj16Vf8EE73v8ujYKs5qwov11U_hus0V3HdnBoA9DS_6Fb111Xq_-3QoSXMN-pdOH2DGBfQ83QuLv8aJ8qrTrua5ecmUnPUxSJ4mpE_PMrgInMrngHc4xY0jNn9tl2eWpyGwNhkU_dSPnPObpO74k4vkWhWA0b0&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=yrVINWSOd5FnyL2PXE-kGKdMdZipPFAx7poGiiYv82FCtz5jU2alS8-9M7uuSLt958sH4hCpGXSs8lNvb6S_yW9EYLf9ZEpUAKWQsHWGMge3q3-tI4qQA1jGktSS4LtbXk21Dsoae9Jrjq47twP8klzJlNm0V8AJ1wYfV6IkqTA1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=UlbC5Yit-597o3oNByTiVu8hTamnDVC_79IwpQrzM1yrFRJAWEha9nydKs3s7r-ETYipWFI6vkjohY3w86Jxvz0oKL0sWXtc72T1YV__rpGnnYbCqulYNlVpuEVbJdgzQDueLegSTSer9XrO7FkBzw2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=o9ueyJLGO3yD4ulTvicHXUNhQ_5Mfn3XtaKCE1rrGytjD--sfF7QqRg3UyGqe_LFUumFmBdvGLcVZytEHs0SJkJPsJaUsaDtoT6wTF5F41bHnpsCtWjXyVKqP-M1taGnSDP0hbNqmtvSpWbRu5AwXOpmJDl9_X-Coqo49h-KOeE1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=94GP9dXu8qjgWGP5BvsFEe0ZBFU3S1rArSSW55FanUnx3-GbclVw7YpFtxcYciv0ZsC47fqWq_YpK1tCUbBVhXVUSUdS63HUZmNmks-lT_lMWAzf8g6rkW3pGGGfa--XkAcoowI4HaB2_GpIMum79nNaf3Yd_KJ7lYjQJas3bfA1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=ccFkTn-cAhY7ukqgwxhT0_q_IdQ4jOubzbDRnWeUEuK4rSSbvw6Hx9Pi_Mrm6wCsxfDjQfDJz5GTaECYdfFdd2BPTfBS7nPzGKUfCCwUG0HYBKzbz3oNsOYLzQDmKZOOySb44beifds_Zzd9VDN92txJgo3f_wbLdObdnbas3YU1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=3yS54Xsmg9-0wSa4dshHtnM0IqNVziksfS5ou3Gw2TN42yIS70_E-vWa6Rxr68fqk3nsssMgZdJR2VXF50lS4IxseF1q_QuD3EAirvNAL4pTh6X5v9BTy4l9x41b4AYKHJ3qkQSwJALOlquoyB-HYAzgUuLFrmio7KqFDBZfDX01&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=_ojjyHK7hOo3UVTUqNVrLBISqSo32D14aF3SQ2AReMTy-A5ru--PbQtzIRGVZZtYHLOfuvlBF-qoHcH8Gf6g62ihLiXAiOAXeLneM0o9TwRwCyAC4uwrelGk-CJseoDyGlhYdTWkEqdz7jBEIwe_-iHVmNepoTJzQcDGTBroBrI1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=VX2qzxC8MLCfaTjCTfygwp6_HMh6oMLXH193BHdtkbpzD6IDo9jlZD0aOsMFqQCoa8s3YCRWA4jk7YXfP6HRMcSrhp75OQo-bdt9F0oK0FwbIsibrOmJ9rYv1G94Cu-w_lwSWuXqPTVQUm9n8I5W9w2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=ot64MC3Y9UAu0TtSvByGmqohDJDhRpE3d_ztQZCQFE6oaPe0Z2LuqFVfkj_TMMPlu7-TOFEvJu5nlHvWQ0Ci_L_qu2YbG-HTO0J63D52BPwvmDIxo7kJoGUx1er10IECedNIs1EavFD9tIzr0eAqPQ2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=Y5igj1ahX8JmOmIy_wHzugKI-ijUhcSvR1l--DR4J6ekQjvNb_E1Gip1m_2_UQqHabrGOgznpPpCnzwIW1WaYQcZUUIz96GBib8DBiMTEqFZjEJmg70Vol1zXWQ2zDJRIT9KfVjM0BsoeX4iAL3FLQ2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=OsNXPDc62F0upaNUytjFIygSyNF9uQTd83jb6pI9eoJjRIZWrRxOefKxOXEGtyo8arL0CJ4VqGMfG53F17E8LUveBTw95g4KUuVJBBb0fhXnODc0zcxHp3tfwhh2zFHbPVL0YP99YEgF70z0VlQJqQ2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=SZLMRIYEiGdC9ezqkSo_IJYDjufP3kjYwZJFD1l83hbd3IJBNMlurQ1-Ya_xGPz8cXAnecDIZBTG-imIH3CNYveNJsbTqAESSlTW07hf5CR6AWqnvGF5ABZ9nY_HQV_XAPG2h_HFiRJhAlSUKcs2VA2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=pucScpbgtdDc7TBDIXofnVBM0WIa7R4HuPr5I8sIFFaLRWidG5vHr2FnRrAYTA6wnyOFeRGFuLfQ_Sp8KYtdUl6kwkn4Ju_lW4HSavPQwTllnMOLaJ4CTJTOAkEnmEPhapWSZnGCIwNyhtWkitA9Kv_l3EA4JBJmvpiTsD2xe8fLR9Jb-YAOIwu_76B9pKtj0&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=MkGXtthYUq3sCeaSE6dYCEE09y-ouqAf5h62e_3gJZf7JOiWfC12_FpyJYihAsU2qT_WpGsGpjf7EDGcjZhA1Jd7XC3E30M_SGtL0lwrzP2Lh66zmNk4Sbe2bPTLaerEfnsiJZxq4g9T_Z9CHrHZbvClkHoI5_KMa7Sr13eXo_g1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=lJ9e-cH1G2JPKfjuYzosuQPNCk8xjuM2bVeVJWVhMPKUFHOGuZSJbLfAcguizgC79NNf3ufVNQUdNFyEarKaX2OTfAdPnvdjwU_YAJMaWhCmJVvXuigwuCjZWIXMB7VGIV1qW2gfsWel_M1N0qXvew7xEL18jMTciUIP2kX2vpw1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=Lbm9Dir0n3kKOSLGgBVOayvurgYxoCOpNlV-heOfjLifbFTSep1xACmjsLN6UyjHIdRrBDTNuZs8x-0yXGqPlopsQB_fPL4QuLetZLCq0r3sWMfXL2x7nkN9GRZL6ttaC6091iKSuVMHNQDqhY0G3A2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=SocrqlkLi21pwD2aikmR_z0tgWGXj7Hnhus9R0ftmIu8da4WwVDmEcMrrJBfw067Lt2MDztf_Usf1-wdUMZhr_BCRCz1kJB2YKLcx1c34c_tReOuN-gPi3-i2kzZqX81wanmQfjA7LWAbH1JgdPzMdKjXishhwfQhJpWC6HTFKc1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=m8O2G4dWYvsvdhFaUXVZjO0qct5G2lSCJ1irM97xr0QD7lRGyM4ecEI2ad0eVYIRDDd73mROLSg7rGAtBmdDBAEzfhY-mUMgns3Qj2bQT8xb2MGPjZH4bC6MIHSsUs834zgSH2NI5U-O_qF0GlV6rkOh3R3W_RaUEVTdPG-L4kg1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=EhSWnc1w9KLbyWqUyZMJTlX8PbjzkWBovn8Ol35Bj27FGuJFJWo4YK2bSn-rMzuf5Da68RYj4nRREMuYFF0t2KevjBdqCUyGnIoNKmmUXX2WHQ1j_vFTOb_Lm4XZoEmKhYl-9tvBuyfVs7yzsbVzwJHyvfwr_OJQAOmAF9vCPBw1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=zBzV8zkFj0WRLciIm-JXYeucTqmn_r_dgXSw12n_LbSHWnW-gajPs1PIav8nYLZ2XllVSBDR_7_dELuL07DrONA2wuXemKPxS-hJ9LpPZ-85c_wAgXOXdVr6kqUoKatvI938EuLNzf-cxAf0tE3BxHscq0iKY652tIfolMkkXWQ1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=u--sXwC_VNVVYNbxbkI07GNvFXZLnFGxeyKxyDL2rOoYbaIAb18D_T6641Ir3H9_WPn1ayRcIZYOeVqRorkY4CkcArt34OyogrrQiaBDY_aSrVR5o1IJLbn0P5O25n6h2f-ui-QTilIPhq1foul_Xg2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=mrSyKWDiCqVobmyBzUxJpm6qxFkducwoydZ3mfCjUBUyh7nw8-ZShAQUAHsWTHcURWrtk8NAy4h8HM-ZS3qdiWI-ngz2EDQQZLPJuHiVqM-jeMh015M_pqxaHDNXvVD8QSUpZ3iFQd8D2J4RDhwj5Us_y_hOIrbVpOB-QL3NgBY1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=5URf-boCDhpOsjUTjFJYOp81XmX9l1yaXLsuPULfVTMqow1Lf_3XRQ5T-1Efs9os5msaJvCPA4HJ8KTZPfhlXMYW4jVH2oc9nxHgsDakwf7CwRlVekl4jylcH4x_TaUJa10NfrravUCaWI7oxz4MxViGabAJpTsXttXDmau4OFs1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=MZ1Sb1FelioCyrBPBmtz61k0K2yriA78Ulsy6C9O2N5G1XEriyBhHcQKcer4bXe7JsL7sT3-LxIdjWCmsKmMed76vzGzased3_jxbCKfD4Q59_BYkxKQNZgGVuH2Va3-dWyF0-5YOvPO7LxDKyKgB675CVTd2E4X0DOqWk8et-M1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=hO2YZpDGC-isMpntJsnlUfx_Phr54fd0o4NDGqBkcgB3yM2ciJ2JsZ2P8waCkn2HUBz45_PVzMQO58FXRX6UcGkPzPCMoolfN4BZf-WMuLZHnQpBrsFRL8VOzzrzUcHVlEXkubY0XqKAC0oki5Yt-q7GtT7Nxer2CAX89gR08rA1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=8_eDKgMfSToH9B3BXsSMmKyhphx4zj9GpLjyci_9xnVvmZLt_yC74AK5QRtu52Sc-QjOxwRI1Nki5LMqoNTHwkJZlI1PtIwbfvdD7N4qvaaBsOeTt_X_8WQKa0Xt_ed_JBzl4N_AkR8l3EcyxJtKdQ2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=13AujdCokrlqoMBgFBg0opqAyDJQ5SqPgDxlwTyYfqA2D2nRILKzNheTY7IzkiuJYLYB_eAAouzVxkHur8PeMiXrgDNU2AnMJDMYm_4dhQ-UGUNLzIb-ZFuuHMq7iA3d_IF6Vlpt-6MXqpTSFqnb91tO9SJMyAK8WNNK867HFrp68HlRvO92LKMpBxKwSbHy0&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=k1RvDPguwPZWdrdzjw3zWQh7qfJfG8gjvKMXppJx5YHjM1jE-q800Y1AHUBJRgWns5toruccPkDAk9eq5LVcEd_1tRduLqfOtLx0KsUWKnNA9MKvoUFfBYCIsi23a-x0Q32FBOPYcmzG-XlwVpyWxg2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=Kb9kLtEU-pmVZXJcjdUMsKyiHkaGjEuZTuXJJpLRX_zSXcqe1FyWROQDHIYw02o2SlUdcnH0GZ0H3jupF8iVzqpER7N-VjUQGvm8IJy7jsslsFJA9Hq4g8HjCDyqmc1X_ZfLvWxUpwH4_IR8LXnO1fXwJseE5GBR54OdkKXXzvs1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=DUGwa9WXz0TuUHEQF19xDykYDdJJ25gq-Wg_PU0tDhMMFgcjTyKEKYGxCr_01GrVpNNA6LvIR2us6u-UbJkwenDVu2QssLZbbLjjkPzL-_y3gJsycNEs6Qd3xwVOJaE9N-MfZp8LycNn3m6wtssFDxxDgoefw39xHBlmCWH0iSM1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=3u3RoydIv627j9G2NKedZ8GQIbB4k0tfGt7L6P3uXjirahm3KVyQAVBxqaMwPuwcjZihJr1zwSYeHMNapRxnumqLsirJ87Qn2HSoiDPeyUdKQ3nIoUoew3954AUw_-eJFZK2l9WcYfgeEE_9CQrK00w8-DWVN3cDMKNCG10NNaE1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=psjO0TN_x8-YYep_vjtxx1LeU5i1cKa6nm_JrY5DXSk0J2TDF3dABzGigaQ96hZestVTezRAu4pG9EkTT2CmUGOfY6Q-eQ1eakNaDuyRpgg9QG6H50FuMGvaI_pOVI1VMA8EJ5XJfdtViw0kLHRN_CWHNSDEXWmGR0HYTjokcMQ1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=Fd-4CNMzb-09UuIGAtUN9_MQtb__aWzFihPVjUKhwztMfeNcE4fTGvVbRcLoj76QpMLLcw-iWaDsNyQSZHU_LtnzZ19IaUlH6G2CyUVG2khdkaAYtnofOsfHCFDxNlzWY7J9q45KAwpVYhD2T_WpHsVBb1_BihmgmKPHOqRbzLw1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=R45l6uJoj5F6cQUhkH_IcNpID33bngEkAsgsrOs13oZ4bn0kGR1plWRWubGaGzXOtpiZ1NkLUt56Tq9derIRH5tRMsQ9n7_ZiM4NPdHXZz-DM_991sPz5hsUXNI83yU6Z5u5Vvgv7WvnCzjKlrd8U6L4wVux34XmB6PpGji1N8tCuDa4lLcOHrls-2EmxpEz0&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=04ac4FmTecZi6FAyq-9unnbMJOcKBRvrBAxaZ-7fIjmnb9TKEr6foHnwhOgUCj3M4RPCkT_Nm-_ycJx3XDAz2aZaAOuvGLE-ZlLJcAUQBhDXYWpjf_ZtuqOiZILyMKNlX-aS83fHRBgvhAdxCIblTOQrfPyUH7_RBClubGLsEOpxsEqyLsOow70BZf7b63hf1PbqEbYKd1zTzCEn-lwW_g2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=djTvgrF8qvFyZBG0X6Xfr4GvXC7ZmtwIf0yPbq7nw-oe1mZPAIlLPw-4Cp6SiX_L2WFmGsanYiZ193SzAanCKTyOlD4_U49w464SGXil5TZcDf6cTDbEYLoOVHsWeq0Xe0C2mrWHS6T1AT2YLMqCeQ2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=MAZDGDUicHW1XS8YhrLMd0qa9Sa-KkMoe2kvW0yXTG8J6kqcBGvhLBG9aQGYx7PTt1loh3mYq3B68Z97c8nw3cWOW7vWewpQbji0VXifq3eDU_0KzvFaa8m3f087DvDEt3wdT49QV3ZyFhzkyyY46cAfR-zzYyYae1PrX_cGp781&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=OVwtBBnoC-bndyLcTWhs6uS-DMALu2mJDtqGNi7QvQ8SNWlcy4zdtAMeFtv7kG5PxAJejVZHLM8Gs0hirYQMVVtAXuGVySAuz6jkwYPUwp0Aah5RQJJ3_tF4F0Ht8pljp7lb3rX6OJOoifrrOLJdGTHdB8GvKIyW7WkL62YoCjAmATGEfBKewze3dqbGXz5E0&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=dwBogLTWd0Gq3s-iciHN6kseI5Z-O3a25JF8TXN0HWTVc3yylVXvRlaUGDIT3YhCfZqmCKFmfGSjhmTgfrZyK2MySrfu76VRg9RUHzWnRWJLLhzQtk0vZ93ZKj2KxkgvquKOjkpYnpuviKORW2VCbB4FXMf8cPKp25eaA2S_z6fthfw_1PCD6N0XL6SlyScS0&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=l8H3lu1re9TSnuS2Lj5vSysYAnheOGlRJu_PZbGv2cLiXFL9bZfmu05UCAxfFibYBV40OwbaGoTm1pLHQ-AMB5fVLsDpUoXky9zDj55YZ6cp-QKQgxBToOBKycEpPV4JHSGAlvqhbzMWfjU_IhLHrA2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=3WpRNFsCDz9rOVcyGf3ZkPbjjIEh_4qZQrxgNkpu4rlKYoo9xeows3Y1BPzurpE_Ln5wGZi8sokWh0LCXUPw-3NRRnR-2l_5_w51E-_q9rIhomzThW-N-MVhmQbmGWLE_8ZrXc75aRfFBN1e95A2qw2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=6PxBwz61ygMn3n-bG5j4bMM_Apqdlr3sozxsnkc9lOV3RzqVg12ddJmCbiv7Vg5tR0hbWBYtbTIYl-GpZjYjCR26D1KOKbfpEae7n-uGhHKcw3MpEaQFj8j3JgXgSJPelDBs8VvN_sUyMVI-QGNg5YuIQApenaFcrNSj3LdeUDM1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=x_M7RIZCwEbPtvi_u12LwjM10zFH7-NLBBV-HefChzq1tVEMOsb3LdpcU1EKhoRyacr9eQjvnlf7J8D9ulVJHl_Fg0nwJRMMG_CEjo1M5XF4OpNUHuY7Im8yFnPse1MWWdlKjCkbGb6X-BNgdu7nBfGqrGgMC0KrXXMEW25nNvo1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=8ebeMOFyBrqxPt5uVBB_uKI96XmV3UvalfWY-DlTPgaFd7oXzb9gJEEUQ2mbF6u3RsywvFQZdWFZCl98QhZfnT0h9vVAgTCyVAsXqAV9Y72UyhyTnzQj_Wg6ibBlvBUchbwNQ2WtcCv-vtwleXHG1BcEzlA-gGPpteZHZS5G_xc1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=s6UrBhwdcgwuZOi-dHobwn5ktf1YzT3phjW1alM5RRXsEU_tQONFpjbUG1dr8-fDBhYnqzs7kqGqu-Tn3mEKIjTgfRX9oX5zKgAHDWFygAUPWzAC-vKRVLXVZhf_8VSYdne8dCCq2BqzPVpXD-gmww2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=SvoEj2bNPBsvytczT6FYGTxterU8hrfRewOsd3bMrk5rmzWLAyuLWU7zWsn8OTBog070Ggx6ZaNgexmIsjZWxy8AG0mSWOGvz5Yc27HR8NGByzgLT6gGQGyYggTJxJCVxgFUmBZHJGqw-zbwvNoZA5TGUVm6ewwo7cwmM9mb-k01&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=Xrc5c3GwZtjGMCCTpcpFiyyzKueLaqzenk67Q6nTMK2AOktsPtOq9GTZ78C1o-kzDrQnJj3Xs15_krAa22HgpOFpb0b8ju9-N1uMKz6AmDIHOpt-2qSZSC1k8abMrlqnz2bfhBvfuBJdtqyirvr-2kUfgGsWW1imBLLB5nllbh41&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=zKGPNSd8GASlh4gSenSossiZWt_gTcjvmTo-YadyEDIJrSJrEnx5Iv1W0Rzq6R1SoIWePeMV39TkLE_CO-MHAT9TZDK0UomKPK5_8tDiO-KfAJxYuT2Bf7pzovaCbIUZF21NwO-fskyGuTlL-okc5A2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=w3BsDz4qUbbw1aAJuKIBdIpog-H4dYVZ1KB2arh9EptpHxSyEX_D4l9aDSAZUZtJvroR8ul6fezzgdpt95W-X1_iUDWwZfzo0TnRbnT2PiEFIm4evxMv5ZmMbvkH8ylNfeIVNr_HstbkwA1325zsCx6bf0qqBgOE2WQ-bkwGQMM1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=SGBm5nyp9fIJKl-V9JANqu6a_GBHNpn1m9rzTo4qCEPoBNgp_IFCwcLaljlolQ3rbeeSl7ZILLlgSGIQSeefA3oa4bp7TPvuQ-MovSP6JvO0mg6CG0I47yCNLQiTWiRyBKM2HXwvjqpJ-ehGi13YUQ2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=eXWysAuCAl41T71L8nI9HgD_poeT8zi0PiVBQrebAkpz0ZEoiqVpG1uZ7KWYpUinDqxoqOYxAcAlZuSLTAS08izV0wno3yfQdpuGanYDzDYJke_JghjHilJqRwErmKhlFCncklthM8FR_SxBn6D4mQQ4Cz-1lClrj6jo6J7Ok-41&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=mCNwm1Cero8siT8tUYwmuzyjxhGTToAQyTq9wc72znID1e-wW-6ybq2S60SSzr_xGjcDO_AiH8KBGIm7BCuStrUaOnC5PYiqlboG0mnp3MtQODNKB_INRpElB4A7Zg5pHzJ_4hpgVXtPw-Xrjxdk_TECYkJrLMWYd98SGW0tJks1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=qMm6zUva9eAVJn8sygA4IwxgafV8tkeMz2d3P1eUcjJwF3kIVfTrJMH7sUoWNUCs1QS2zMuFDef-ANdueshrXN1xrOuvYGImBu3C6cinyyflnk4a9TPygKgsf5FySToeXFf9C5IZFDjNQI98PTqcFi2AwV3KIupzp5F1FrUViAs1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=RqIJQOTQ4QGd202w6deMg7HWLOh2CUTCakWyW4wNTxj9V_R7XJCHy7yVPEhYXki0Tj0gJHgqlhz89o-6J79igw-jaZ1O15qGAlcKyRSklOuiIF-ipklbw02dYAetXjUoij1Bis697RCdjtWSG7sYgW2g4RO3ou0xTagM0aBgWuo1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=dRvq_YMEfzW4CgR5Ns07gm9zPg8TfHctViZ27DCm8NGVZx5w-2aOpJ7MwJVZJnMFWRRtHTaQ5Zr-_XL8ylibuWddbugxcU59yLG3YnlP0T0MdhjcgaJlur1XsqoemH_fftn5wHPNsIvDHqC7ZCD3lA2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=MAvV1FhrtfRt8UMPfrsUsILJWxwRFGsL5Z4NgHk-NgSOLRGFO8QRjgEKf-NHXUwpxA8n1wPWYlXRipZO9M1WBMFPMPlxrZYFjz33Lr5VLQe-qPX5TzVn-NAl7iYLu1tKsV_am95Ug6iI51V87lDqWReSspIQljtIkQW8KMcZchg1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=uofNRHIW2L8neiVqFdNJKZGfE8gkhV85EAvQD6_X2BGaRd_EWktvbvIIFy-xtjdtF3JZl5EQDeV5fXftOVFPF71m0n4f5yWCMwa_A2mpp5hZ6eMSeyGQAqN7xH_1VPiVawuXPVrr1tGkwH_Zheco1mrSQ-klxwUSWIZgtALcPW41&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=AFJiGUmCfkpFKG1kwIS0KqHsEFh0Lnt2spQvUs-PIb48f_h_vOWtHyxW07xX7pGPkdmnPPdId0fzizeV7KF0Ce0ZKXJ1JR9urs4DXWoleng8P11lJe2VnKCdQkIrODp5mWzT0-m7bqJWftWfDcu2Y1hSn-px1BWyyAikZ2eBy9k1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=J1TjItbo6olMzSphykM_toLoQEPDlmrm6WrBGejRPK8aTRDrzRRlfg232-XwnB0Rc346_JVl4VCmoirXTQHLLymJVloMY32jV-kN5UZ30hnYk_v7QJjYUxudl0sqx_qOaqoRX-AD2IpNOQK2tDoWiYCupclKxh2KISsOt12qXDc1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=1Ybwuw8qbnD9c4ZdcpL4ASvybexPFYvicYfIA2sJpNB1cbw4M8G9SHaU_t_8k-eTs1WRRGZ3yOHnrRrNYfI0lOxaxvimsORhzP0UqVVmgoE23UzRtSNCiBIs7qDFOcUMsceKt7G-JOvyUFiVcvi4zy2gkYKubYZ8OUfSQmDi3ns1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=tUR6EO-D0sNsNYJbzJNlL_UaMnFrs3An3p5eqZj9ZBC_zWJ9o-LgbyJA-KfiNxK99R5zf0XJBHyjkxTEoV-_9YcpCqsD4f7yEInNrpuhceFcyWkreqWhzWkgyYq6EqeggMCHfxSZLI-JHkccLokmSZKGfDRUNXpI-XYK3VeUGq81&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=gBY69O9ADYx5VhghpPQvGDiMG-tGpc5HaBdSX6PNYMPTx6OACa3_B_3aXOzQQcqr2NXUGu6-9N8nNm07FvNpjqKk9ndXD3v5SEeWCcfURK5obR6X9LDvbk9mMDTzeFpnfzfU77XoJUYdXb8PZ_Y45qT1dizXS-bhMTLudLmpIss1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=bVH1Ff4DcHpgkUWTbMb0AcPa18GfgDj512GYw962PB68AUaOqO1iLHwnek-Lojo2fqusqQIJdKt_4pLVjrt9Nt4zB600ZgBTUdy67oLyacAaGVS7R3wdYhJSi1AMGY_50&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=8fcwuE7Aq-biVj7Pt8gh5MHbxxjRVjkcGlL6VJdo5t9RF_VwMN6CQKfKzBOROMBf5W18_PxLER-MF0Y4RSMwvbo_awqoULfMvzCCEhpqj93672N6mVxSJTbwnFqKv18vmduY21jI23k0cYHzSEXvKNUXcGOrIPvGvuJ0xzR8ADU1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=ScJX084EfFI0dWGpIXdj0h_MpMyGaM9cOt46EPRBSa7TeCJKfhGlbRIXYQqPuqk-faV83F5sUlzZGG_KqYSrGWmOX3lEhNcFs4sqddshhQI403LZfB60DxHU8UJtLAhy84sCBQSgTZEgVBr1j5St1Q2&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=NOxcPGTpNU5OQyvwMLZH9fPavZcRHWvdUTAWv0W-8c2K76B4v6mil-PrDiyZcia_8ekl4VqiJX1r6bDHeNSXskSGSIuYHalM5mCHFhs6G_MO5YloqvIWMgcOOGJ2EyuV18PoDAdyI3b3kSxn2iGhYzIFzOadE2tqzXs9yFx6UX0RYMQIQx7Wp9DYSbvCmTrj0&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<script src="/eResearch/ScriptResource.axd?d=m-N9IcCgY02Z3Hydc-ctvzC8QAVuVNwO7pi_-TduzJgxhs-Hg8ZT-nBCilV4Mn9V25KoneSfl4klwGAr_bdkC25ac2u_J_Qd8skolCiVByMtmPzuIaT-eC_IB6YfLepXcvUCiWVxw_hA1ttFBY5ZJubwGVB-Gsxc0xD5Uo0cC7o1&amp;t=ffffffffafdfa956" type="text/javascript"></script>
+<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="E0A7EA4B" />
+<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="/wEdAAYoVHfChBl1YPbrH1+keaXUofWplCdnQ5t4EmAkSiRjR0wUeKgAIrZgpoLv7Yv9LMWT6VjHiKqETj8uF90+2PGZ55jwL7bKhoHvfFrB+rKbRGx0wZxxI2GAjKAxYywEoWKNFWiuVwWLhTS32NBWPlAi9ImDWQe4nSBP6q9ShvSkNw==" />
+        
+        <div>
+            <table style="width:100%; margin:0px">
+                <tr>
+
+                    <td>
+                        
+
+<style type="text/css">
+   
+    </style>
+
+
+<link href="../../Styles/Site2.css" rel="stylesheet" type="text/css" />
+<style type="text/css">
+    .bannerbg {
+        background-image: url('Images/test2.png');
+        background-repeat: repeat-x;
+        vertical-align: middle;
+        margin: 0px !important;
+    }
+
+    .style1 {
+    }
+
+    .style2 {
+        font-family: Cambria;
+        font-size: 15px;
+        font-weight: bold;
+    }
+
+    .style3 {
+        font-size: 24px;
+        font-family: Helvetica;
+        font-weight: bold;
+        color: white;
+    }
+
+    .style4 {
+        font-family: Helvetica;
+        font-size: 20px;
+    }
+</style>
+
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 0px !important">
+    <tr>
+        <td align="left">
+                        <table style="width: 100%; background-image: url('/eresearch/Images/newbg.png');">
+  
+
+                <tr>
+
+                    <td nowrap="nowrap" style="text-align: center">
+                        <span class="style3">
+                            <table align="center">
+                                <tr>
+                                    <td>
+                                        <span class="style3">
+                                            <img id="EDSHeader2_Image1" src="../../../Images/cbsl_logo.png" height="68" width="68" style="text-align: left" />
+                                        </span></td>
+                                    <td>&nbsp;&nbsp;&nbsp;&nbsp;
+ DATA LIBRARY - CENTRAL BANK OF SRI LANKA 
+                                    </td>
+                                    <td>
+                                        <img src="/eresearch/Images/headbar.png" height="100" /></td>
+                                </tr>
+
+                            </table>
+                        </span></td>
+                </tr>
+                <tr>
+                    <td></td>
+
+                </tr>
+
+
+            </table>
+        </td>
+    </tr>
+</table>
+
+
+
+
+
+
+
+
+                    </td>
+                </tr>
+                <tr>
+                    <td align="right">
+                        <a href="https://www.cbsl.lk/eResearch">
+                        <img id="imghome" src="../../../Images/homeico.png" width="80" /></a>
+                        <a href="/eresearch/Modules/RD/SearchPages/User-Guide.pdf" target="_blank">
+                        <img id="imguguide" src="../../../Images/uguide.png" width="80" />
+                            </a>
+                    </td>
+                </tr>
+            </table>
+            
+
+     
+   
+      <table > <tr>
+                            <td class="auto-style11">
+
+                                
+                                
+
+                                
+                            </td>
+
+                        </tr></table>
+
+ 
+     <div style="margin-left:100px;margin-right:100px;">
+
+         <table   style="height: 100%; background-color: white; ">
+
+             <tr style="text-align:left;">
+                            <td  >
+                                <span id="ContentPlaceHolder1_Label1">From</span>
+                            </td>
+                            <td  >
+                                <input name="ctl00$ContentPlaceHolder1$txtFrom" type="text" value="2031-01-01" id="ContentPlaceHolder1_txtFrom" />
+                                
+                            </td>
+                            <td  >
+                                &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;</td>
+                            <td>
+                                <span id="ContentPlaceHolder1_Label3">To</span>
+                            </td>
+                            <td>
+                                <input name="ctl00$ContentPlaceHolder1$txtTo" type="text" value="2031-02-01" id="ContentPlaceHolder1_txtTo" />
+                                
+                            </td>
+                                  <td>
+                                <input type="submit" name="ctl00$ContentPlaceHolder1$btnShow" value="Show" id="ContentPlaceHolder1_btnShow" />
+                                  </td>
+                        </tr>
+        </table>
+
+
+    <div style="background-color: #FFF;" id="Grid">
+     
+
+
+       
+        <table >
+              <tr>
+                  <td style="text-align:left;">
+                      
+                  </td>
+              </tr>
+            <tr>
+                <td style="vertical-align: top">
+                    <table width="830px" style="vertical-align:top;" >
+                       
+                        
+                        
+                   
+
+                        <tr style="min-height:500px;vertical-align:top;">
+                            <td style="text-align: left; ">
+                            <br />  
+                                     <table id="statTB" width="100%" align="center" style="border: solid 1px;border-color:#C8E2F5; border-spacing: 0;">
+
+
+                                   
+                                    <tr>
+                                        <td colspan="9" style="background-color: #C8E2F5; text-align: center; color: #005D93;">
+
+                                            <strong>Commercial Bank Lending and Deposit Rates ( Per cent per annum )</strong></td>
+                                    </tr>
+                                    <tr class="c2" style="font-size:medium;  line-height: 1.1;font-size:14px;  "  >
+                                        <td   style="background-color: #E6F2FB;color: #5F9AD7;font-size: medium;line-height: 1.1;font-size: 14px;font-family: Arial;width:75px;" rowspan="2">End Week</td>
+                                        <td style="background-color: #E6F2FB;color: #5F9AD7;font-size: medium;line-height: 1.1;font-size: 14px;font-family: Arial;width:75px;" rowspan="2">Average Weigted Lending Rate (AWLR) </td>
+                                        
+                                        <td style="background-color: #E6F2FB;color: #5F9AD7;font-size: medium;line-height: 1.1;font-size: 14px;font-family: Arial;" colspan="3" >Average Weighted 
+Prime Lending Rate (AWPR)</td>
+                                        <td style="background-color: #E6F2FB;color: #5F9AD7;font-size: medium;line-height: 1.1;font-size: 14px;font-family: Arial;" colspan="2" >Average Weighted 
+Deposit Rate</td>
+                                          <td style="background-color: #E6F2FB;color: #5F9AD7;font-size: medium;line-height: 1.1;font-size: 14px;font-family: Arial;" rowspan="2">Average Weighted Fixed Deposit Rate (AWFDR) 
+Rate (% )</td>
+                                               <td style="background-color: #E6F2FB;color: #5F9AD7;font-size: 14px;font-family: Arial;" rowspan="2">Average Weighted SME Rate (AWSR)</td>
+ 
+                                    </tr>
+                                    <tr class="c2" style="font-size:medium;  line-height: 1.1;font-size:14px;  " >
+                                        
+                                        <td style="background-color: #E6F2FB;color: #5F9AD7;font-size: medium;line-height: 1.1;font-size: 14px;font-family: Arial;" >Weekly</td>
+                                        
+                                        <td style="background-color: #E6F2FB;color: #5F9AD7;font-size: medium;line-height: 1.1;font-size: 14px;font-family: Arial;" >Monthly</td>
+                                        
+                                        <td style="background-color: #E6F2FB;color: #5F9AD7;font-size: medium;line-height: 1.1;font-size: 14px;font-family: Arial;" >6 months</td>
+                                        <td style="background-color: #E6F2FB;color: #5F9AD7;font-size: medium;line-height: 1.1;font-size: 14px;font-family: Arial;" >Monthly</td>
+                                        <td style="background-color: #E6F2FB;color: #5F9AD7;font-size: medium;line-height: 1.1;font-size: 14px;font-family: Arial;" >6 months</td>
+                                    </tr>
+                                    
+                                    <tr class="tr1">
+                                        <td colspan="11 " style="width: 80px; line-height: 0.8;">
+                                           No records found!  </td>
+
+
+
+                                    </tr>
+                                    
+                                </table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                &nbsp;</td>
+
+
+                        </tr>
+
+
+
+                        
+
+
+
+                    </table>
+
+                </td>
+
+            </tr>
+
+        </table>
+
+    </div>
+
+         <input type="submit" name="ctl00$ContentPlaceHolder1$btnExport" value="Export To Excel" id="ContentPlaceHolder1_btnExport" />
+
+
+
+            </div>
+   
+
+    <input type="hidden" name="ctl00$ContentPlaceHolder1$hfGridHtml" id="ContentPlaceHolder1_hfGridHtml" />
+
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+<script type="text/javascript">
+    $(function () {
+        $("[id*=btnExport]").click(function () {
+            $("[id*=hfGridHtml]").val($("#Grid").html());
+        });
+    });
+</script>
+
+
+   
+
+
+
+
+
+
+
+
+
+        </div>
+         <div class="footdiv">
+             
+                Statistics Department - 
+            
+             Central Bank of Sri Lanka 
+             (Contact Tel : 0112477650)
+             <br />
+             &nbsp;
+            </div>
+    
+
+<script type="text/javascript">
+//<![CDATA[
+Sys.Application.add_init(function() {
+    $create(Sys.Extended.UI.CalendarBehavior, {"format":"yyyy-MM-dd","id":"ContentPlaceHolder1_txtFrom_CalendarExtender"}, null, null, $get("ContentPlaceHolder1_txtFrom"));
+});
+Sys.Application.add_init(function() {
+    $create(Sys.Extended.UI.CalendarBehavior, {"format":"yyyy-MM-dd","id":"ContentPlaceHolder1_txtTo_CalendarExtender"}, null, null, $get("ContentPlaceHolder1_txtTo"));
+});
+//]]>
+</script>
+</form>
+
+   
+</body>
+</html>

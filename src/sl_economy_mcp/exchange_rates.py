@@ -13,12 +13,14 @@ bigger number means a weaker rupee.
 
 import re
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from html import unescape
 
 from . import DISCLAIMER
+from .dates import parse_day, today_in_sri_lanka
 from .errors import InvalidRequest, NoData, PageChanged
-from .fetch import SRI_LANKA_TIME, Page, fetch
+from .fetch import Page, fetch
+from .series import Series, describe, month_ends
 
 CBSL = "https://www.cbsl.gov.lk"
 
@@ -55,7 +57,6 @@ AUTO_DAILY_LIMIT = 120  # longer histories are listed as month-ends instead
 MAX_DAILY_ROWS = 800  # about three years of business days
 
 Row = tuple[date, float, float]  # a date and the two numbers beside it
-Series = list[tuple[date, float]]  # one rate per date, oldest first
 
 
 # --- Reading CBSL's pages -------------------------------------------------
@@ -123,15 +124,13 @@ def lookup(form: LookupForm, code: str, start: date, end: date) -> tuple[list[Ro
     return [row for row in rows if start <= row[0] <= end], page
 
 
-# --- Working with a series of rates (no internet needed) ------------------
+# --- Summarising and checking ---------------------------------------------
 
 
 def summarise(series: Series, code: str) -> dict:
-    """Start, end, percentage change, high, low and average of a series."""
-    (first_day, first), (last_day, last) = series[0], series[-1]
-    change = (last / first - 1) * 100
-    high = max(series, key=lambda point: point[1])
-    low = min(series, key=lambda point: point[1])
+    """Start, end, percentage change, high, low and average of a series of rates."""
+    basics = describe(series)
+    change = (series[-1][1] / series[0][1] - 1) * 100
     if change > 0:
         direction = f"{code} became more expensive in rupees"
     elif change < 0:
@@ -139,39 +138,19 @@ def summarise(series: Series, code: str) -> dict:
     else:
         direction = "unchanged"
     return {
-        "first": {"date": first_day.isoformat(), "rate": first},
-        "last": {"date": last_day.isoformat(), "rate": last},
+        "first": _rate(basics["first"]),
+        "last": _rate(basics["last"]),
         "change_percent": round(change, 2),
         "direction": direction,
-        "high": {"date": high[0].isoformat(), "rate": high[1]},
-        "low": {"date": low[0].isoformat(), "rate": low[1]},
-        "average": round(sum(rate for _, rate in series) / len(series), 4),
-        "business_days": len(series),
+        "high": _rate(basics["high"]),
+        "low": _rate(basics["low"]),
+        "average": basics["average"],
+        "business_days": basics["observations"],
     }
 
 
-def month_ends(series: Series) -> Series:
-    """Keep only the last published rate of each calendar month."""
-    last_in_month = {}
-    for day, rate in series:  # oldest first, so later days overwrite earlier ones
-        last_in_month[(day.year, day.month)] = (day, rate)
-    return list(last_in_month.values())
-
-
-# --- Checking what the caller asked for -----------------------------------
-
-
-def parse_day(text: str) -> date:
-    try:
-        return date.fromisoformat(text.strip())
-    except ValueError:
-        raise InvalidRequest(
-            f"'{text}' is not a valid date. Use year-month-day, for example 2026-10-09."
-        ) from None
-
-
-def today_in_sri_lanka() -> date:
-    return datetime.now(SRI_LANKA_TIME).date()
+def _rate(point: dict) -> dict:
+    return {"date": point["date"], "rate": point["value"]}
 
 
 def check_currency(currency: str) -> tuple[str, str]:

@@ -1,0 +1,22 @@
+# Runs the test suite on GitHub's computers every time code is pushed,
+# on the oldest and newest Python versions we support.
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install ".[dev]"
+      - run: python -m pytest

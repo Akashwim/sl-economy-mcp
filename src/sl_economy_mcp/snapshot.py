@@ -87,13 +87,20 @@ def parse_rate_window(html: str) -> dict[str, float]:
 
 def get_snapshot() -> dict:
     page = fetch(RATE_WINDOW_URL)
+    values = parse_rate_window(page.text)
+    real_rate = values["overnight_policy_rate_percent"] - values["ccpi_inflation_percent"]
     return {
-        **parse_rate_window(page.text),
+        **values,
+        "real_policy_rate_percent": round(real_rate, 2),
         "notes": {
             "ccpi_inflation_percent": (
                 "Year-on-year change in the Colombo Consumer Price Index, latest month published."
             ),
             "overnight_policy_rate_percent": "CBSL's main policy interest rate.",
+            "real_policy_rate_percent": (
+                "Policy rate minus inflation, worked out by this tool. A rough "
+                "guide to how tight policy is once price rises are allowed for."
+            ),
             "usd_lkr_tt_buy / usd_lkr_tt_sell": (
                 "Rupees per US dollar: average telegraphic transfer rates quoted "
                 "by commercial banks in Colombo at 9.30 a.m."

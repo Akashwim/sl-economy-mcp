@@ -16,9 +16,13 @@ def fake_internet(monkeypatch):
     monkeypatch.setattr(fetch_module, "_cache", {})
     requests = []
 
+    class FakeResponse(io.BytesIO):
+        def geturl(self):
+            return "https://example.test/landed-here"
+
     def fake_urlopen(request, timeout):
         requests.append(request)
-        return io.BytesIO(b"hello")
+        return FakeResponse(b"hello")
 
     monkeypatch.setattr(fetch_module.urllib.request, "urlopen", fake_urlopen)
     return requests
@@ -28,6 +32,7 @@ def test_second_request_for_same_page_uses_the_cache(fake_internet):
     first = fetch("https://example.test/page")
     second = fetch("https://example.test/page")
     assert first.text == "hello"
+    assert first.url == "https://example.test/landed-here"  # after any redirects
     assert second is first
     assert len(fake_internet) == 1
 

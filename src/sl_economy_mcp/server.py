@@ -1,4 +1,4 @@
-"""The MCP server: the list of tools an AI assistant is allowed to call.
+"""The MCP server: what an AI assistant can see and call.
 
 Each tool is a thin wrapper. The real work lives in the other modules so it
 can be tested without starting a server. The text under each function is what
@@ -9,11 +9,16 @@ import functools
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
+from mcp.types import ToolAnnotations
 
-from . import exchange_rates, snapshot
+from . import exchange_rates, inflation, interest_rates, snapshot
 from .errors import ExpectedProblem
 
 mcp = MCPServer("sl-economy-mcp")
+
+# Every tool only reads public web pages. Saying so lets an app run them
+# without treating them as risky.
+READ_ONLY = ToolAnnotations(read_only_hint=True, open_world_hint=True)
 
 
 def explain_problems(tool):
@@ -34,19 +39,20 @@ def explain_problems(tool):
     return wrapper
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 @explain_problems
 def get_snapshot() -> dict:
     """Latest headline Sri Lankan economic indicators from the Central Bank of Sri Lanka.
 
-    Returns the overnight policy rate, CCPI inflation (year-on-year) and the
-    USD/LKR telegraphic transfer buying and selling rates, fetched live from
-    cbsl.gov.lk, with the source URL and fetch time.
+    Returns the overnight policy rate, CCPI inflation (year-on-year), the real
+    policy rate (policy rate minus inflation) and the USD/LKR telegraphic
+    transfer buying and selling rates, fetched live from cbsl.gov.lk, with the
+    source URL and fetch time.
     """
     return snapshot.get_snapshot()
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 @explain_problems
 def get_exchange_rate(currency: str = "USD", date: str | None = None) -> dict:
     """Sri Lankan rupee (LKR) exchange rate for one currency on one date, from the Central Bank of Sri Lanka.
@@ -66,7 +72,7 @@ def get_exchange_rate(currency: str = "USD", date: str | None = None) -> dict:
     return exchange_rates.get_exchange_rate(currency, date)
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 @explain_problems
 def get_exchange_rate_history(
     currency: str, start_date: str, end_date: str | None = None, interval: str = "auto"
@@ -88,6 +94,72 @@ def get_exchange_rate_history(
             always uses every daily rate.
     """
     return exchange_rates.get_exchange_rate_history(currency, start_date, end_date, interval)
+
+
+@mcp.tool(annotations=READ_ONLY)
+@explain_problems
+def get_inflation_history(start_month: str | None = None, end_month: str | None = None) -> dict:
+    """Monthly Sri Lankan inflation, from the Central Bank of Sri Lanka.
+
+    Returns year-on-year headline and core inflation for the Colombo Consumer
+    Price Index (CCPI, the headline measure) and the National Consumer Price
+    Index (NCPI), month by month, with the latest, highest and lowest headline
+    figures. Fetched live from cbsl.gov.lk.
+
+    Args:
+        start_month: Year-month, e.g. 2024-01. Leave out for the earliest
+            month CBSL lists (about six years back).
+        end_month: Year-month. Leave out for the latest month published.
+    """
+    return inflation.get_inflation_history(start_month, end_month)
+
+
+@mcp.tool(annotations=READ_ONLY)
+@explain_problems
+def get_interest_rates(
+    series: str = "lending", start_date: str | None = None, end_date: str | None = None
+) -> dict:
+    """Sri Lankan interest rates over time, from the Central Bank of Sri Lanka's Data Library.
+
+    Returns each rate's values with a summary: first, last, change in
+    percentage points, high, low and average. Long ranges are listed as
+    month-end values. For today's policy rate use get_snapshot.
+
+    Args:
+        series: "lending" for commercial bank rates: the weekly prime lending
+            rate (AWPR) that company loans are priced from, plus monthly
+            average lending and deposit rates, from 2007. "treasury_bills" for
+            weekly 91, 182 and 364-day Treasury bill yields, the rupee
+            risk-free benchmark. Treasury data can take 15 seconds or more
+            and may run a few months behind.
+        start_date: Year-month-day. Leave out for one year before end_date.
+        end_date: Year-month-day. Leave out for today.
+    """
+    return interest_rates.get_interest_rates(series, start_date, end_date)
+
+
+@mcp.prompt(title="Sri Lanka macro briefing")
+def macro_briefing() -> str:
+    """A one-page, sourced briefing on Sri Lanka's interest rates, inflation and the rupee."""
+    return (
+        "Write a one-page briefing on Sri Lanka's economy as it stands now, "
+        "using only figures from the sl-economy tools.\n\n"
+        "Call these first:\n"
+        "- get_snapshot\n"
+        "- get_inflation_history for the last 24 months\n"
+        "- get_exchange_rate_history for USD over the last 12 months\n"
+        "- get_interest_rates with series 'lending' for the last 12 months\n"
+        "- get_interest_rates with series 'treasury_bills' for the last 12 months\n\n"
+        "Then cover, in this order:\n"
+        "1. Monetary policy: the policy rate and the real policy rate.\n"
+        "2. Inflation: the latest headline and core figures and the trend.\n"
+        "3. The rupee: where it is against the dollar and how far it has moved in 12 months.\n"
+        "4. Borrowing costs: the prime lending rate and Treasury bill yields, and their direction.\n"
+        "5. What to watch: two or three things these figures suggest keeping an eye on.\n\n"
+        "Give the date each figure refers to. If a tool reports missing or "
+        "out-of-date data, say so plainly instead of estimating. End with the "
+        "source links. Do not give investment advice."
+    )
 
 
 def main() -> None:

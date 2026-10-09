@@ -1,6 +1,6 @@
 """Downloading pages from CBSL: one place for the cache, User-Agent and errors.
 
-Every tool goes through `fetch()` so that they all behave the same way:
+Every tool goes through here so that they all behave the same way:
 - we identify ourselves honestly with a User-Agent,
 - we keep each page for a few minutes so repeated questions don't hammer CBSL,
 - network problems become one clear, readable error.
@@ -11,22 +11,20 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from . import __version__
+from .dates import SRI_LANKA_TIME
 from .errors import SourceUnavailable
 
 USER_AGENT = f"sl-economy-mcp/{__version__} (unofficial open-source MCP server)"
 TIMEOUT_SECONDS = 20
 CACHE_SECONDS = 5 * 60
 
-# Sri Lanka is UTC+5:30 all year round (no daylight saving).
-SRI_LANKA_TIME = timezone(timedelta(hours=5, minutes=30), "Asia/Colombo")
-
 
 @dataclass(frozen=True)
 class Page:
-    url: str
+    url: str  # where the page ended up, after any redirects
     body: bytes
     fetched_at: datetime  # timezone-aware, UTC
 
@@ -49,36 +47,57 @@ class Page:
         }
 
 
-_cache: dict[tuple, tuple[float, Page]] = {}
+def new_session() -> urllib.request.OpenerDirector:
+    """A browser-like visit that remembers cookies between requests."""
+    return urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
 
 
-def fetch(url: str, form: dict | None = None) -> Page:
-    """Download `url`, or return the copy from the last few minutes.
+def download(
+    url: str,
+    form: dict | None = None,
+    session: urllib.request.OpenerDirector | None = None,
+    timeout: int = TIMEOUT_SECONDS,
+) -> Page:
+    """Get a page from the internet right now, with no cache.
 
     Pass `form` to submit a search form (an HTTP POST) instead of simply
-    opening the page. Different form values are cached separately.
+    opening the page, and `session` when the site needs its cookies back.
     """
     data = urllib.parse.urlencode(form).encode() if form else None
-    key = (url, data)
-    cached = _cache.get(key)
-    if cached and time.monotonic() - cached[0] < CACHE_SECONDS:
-        return cached[1]
-
     request = urllib.request.Request(url, data=data, headers={"User-Agent": USER_AGENT})
+    open_url = session.open if session else urllib.request.urlopen
     try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
-            body = response.read()
+        with open_url(request, timeout=timeout) as response:
+            return Page(response.geturl(), response.read(), datetime.now(timezone.utc))
     except urllib.error.HTTPError as error:
         raise SourceUnavailable(
             f"CBSL returned an error (HTTP {error.code}) for {url}. "
             "The site may be down or the page may have moved."
         ) from error
-    except (urllib.error.URLError, TimeoutError) as error:
+    except OSError as error:  # no connection, timed out, connection dropped
         raise SourceUnavailable(
             f"Could not reach CBSL at {url}. Check the internet connection, "
-            "or CBSL's website may be down. Try again in a few minutes."
+            "or CBSL's website may be down or slow. Try again in a few minutes."
         ) from error
 
-    page = Page(url=url, body=body, fetched_at=datetime.now(timezone.utc))
+
+_cache: dict[tuple, tuple[float, Page]] = {}
+
+
+def cached(key: tuple, get_page) -> Page:
+    """The page saved under `key` if it is recent, otherwise whatever `get_page()` returns."""
+    saved = _cache.get(key)
+    if saved and time.monotonic() - saved[0] < CACHE_SECONDS:
+        return saved[1]
+    page = get_page()
     _cache[key] = (time.monotonic(), page)
     return page
+
+
+def fetch(url: str, form: dict | None = None) -> Page:
+    """Download `url`, or return the copy from the last few minutes.
+
+    Different form values are cached separately.
+    """
+    key = (url, tuple(sorted(form.items())) if form else None)
+    return cached(key, lambda: download(url, form))

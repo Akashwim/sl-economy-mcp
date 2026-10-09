@@ -4,11 +4,14 @@ These run against a saved copy of the real page, so they work offline and
 give the same answer every time.
 """
 
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
+from sl_economy_mcp import snapshot
 from sl_economy_mcp.errors import PageChanged
+from sl_economy_mcp.fetch import Page
 from sl_economy_mcp.snapshot import parse_rate_window
 
 SAVED_PAGE = (Path(__file__).parent / "fixtures" / "ratewindow_2026-10-09.html").read_text()
@@ -49,3 +52,15 @@ def test_clear_error_when_page_is_something_else_entirely():
 def test_clear_error_when_buy_is_above_sell():
     with pytest.raises(PageChanged, match="buying rate above"):
         parse_rate_window(SAVED_PAGE.replace("326.4384", "999.0"))
+
+
+def test_snapshot_adds_real_rate_source_and_time(monkeypatch):
+    def fake_fetch(url, form=None):
+        return Page(url, SAVED_PAGE.encode(), datetime(2026, 10, 9, 8, 0, tzinfo=timezone.utc))
+
+    monkeypatch.setattr(snapshot, "fetch", fake_fetch)
+    result = snapshot.get_snapshot()
+    assert result["real_policy_rate_percent"] == 0.75  # 8.75 policy rate - 8.00 inflation
+    assert result["source_url"] == snapshot.RATE_WINDOW_URL
+    assert result["fetched_at_utc"] == "2026-10-09T08:00:00+00:00"
+    assert "disclaimer" in result

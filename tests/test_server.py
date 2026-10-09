@@ -15,7 +15,19 @@ def test_all_tools_are_registered():
         "get_snapshot",
         "get_exchange_rate",
         "get_exchange_rate_history",
+        "get_inflation_history",
+        "get_interest_rates",
     ]
+    assert all(tool.annotations.read_only_hint for tool in tools)
+
+
+def test_briefing_prompt_mentions_only_tools_that_exist():
+    prompts = asyncio.run(server.mcp.list_prompts())
+    assert [prompt.name for prompt in prompts] == ["macro_briefing"]
+    text = server.macro_briefing()
+    tool_names = {tool.name for tool in asyncio.run(server.mcp.list_tools())}
+    mentioned = {word.strip(".,'") for word in text.split() if word.startswith("get_")}
+    assert mentioned and mentioned <= tool_names
 
 
 def test_assistant_can_read_our_error_messages(monkeypatch):
