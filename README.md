@@ -9,6 +9,10 @@ Several MCP servers already cover Colombo Stock Exchange share prices. This one 
 
 Every call fetches fresh data from CBSL, and every answer says where the data came from, when it was fetched and which date it refers to.
 
+![A table Claude produced with these tools: policy rate, inflation, lending rates, Treasury bill yield and the rupee, each with its date and the value a year earlier](docs/briefing-example.png)
+
+*Claude's answer to "Give me a Sri Lanka macro briefing", 9 October 2026. Every figure came from these tools; the layout and the year-earlier comparison are Claude's.*
+
 ## Tools
 
 | Tool | What it returns |
