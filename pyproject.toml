@@ -1,0 +1,23 @@
+[project]
+name = "sl-economy-mcp"
+version = "0.1.0"
+description = "Unofficial MCP server for live Sri Lankan economic data from the Central Bank of Sri Lanka (CBSL)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+dependencies = [
+    "mcp>=2,<3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+sl-economy-mcp = "sl_economy_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
