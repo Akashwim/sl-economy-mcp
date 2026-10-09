@@ -12,15 +12,11 @@ and find each number by the label next to it.
 import re
 from html.parser import HTMLParser
 
-from .fetch import PageChanged, fetch
+from . import DISCLAIMER
+from .errors import PageChanged
+from .fetch import fetch
 
 RATE_WINDOW_URL = "https://www.cbsl.gov.lk/cbsl_custom/param/ratewindow.php"
-
-DISCLAIMER = (
-    "Unofficial tool, not affiliated with the Central Bank of Sri Lanka. "
-    "Data is read from CBSL's public website and may contain errors. "
-    "Not investment advice."
-)
 
 NUMBER = r"(-?\d+(?:\.\d+)?)"  # inflation can be negative (deflation)
 
@@ -105,7 +101,8 @@ def get_snapshot() -> dict:
         },
         "data_date": (
             "Not stated by CBSL on this page. These are the latest values "
-            "CBSL was showing at the fetch time below."
+            "CBSL was showing at the fetch time below. For a dated exchange "
+            "rate use get_exchange_rate."
         ),
         **page.stamp(),
         "disclaimer": DISCLAIMER,

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from sl_economy_mcp.fetch import PageChanged
+from sl_economy_mcp.errors import PageChanged
 from sl_economy_mcp.snapshot import parse_rate_window
 
 SAVED_PAGE = (Path(__file__).parent / "fixtures" / "ratewindow_2026-10-09.html").read_text()

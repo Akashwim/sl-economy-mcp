@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Exchnage Rates</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+  <script type="text/javascript" src="javascript/zebra_datepicker.js"></script>
+  <script type="text/javascript" src="./javascript/iframeResizer.contentWindow.min.js"></script>
+  <link rel="stylesheet" href="css/default.css" type="text/css">
+  <style>
+  	.btn-link{
+	  border:none;
+	  outline:none;
+	  background:none;
+	  cursor:pointer;
+	  color:#0FA7F8;
+	  padding:0;
+	  text-decoration:underline;
+	  font-family:inherit;
+	  font-size:inherit;
+	  text-decoration: none;
+	}
+  </style>
+</head>
+<body>
+<form name="form" action="" method="post">
+<input id="startDate" name="startDate" type="hidden" >
+<input id="endDate" name="endDate" type="hidden" >
+<div class="container">
+
+<div class="row">
+
+
+</div><p></p><span class="export">
+View or save this data in:	
+  <!--button class="btn-link" type="submit" value="xml" name="btnXML">XML</button>,--> 
+ 	<button class="btn-link" type="submit" value="csv" name="btnCSV">CSV</button>
+	</span>
+
+<h2>View data for the past: </h2><ul class="quick_dates">
+<li><button class="btn-link" type="submit" value="Submit" name="submit_button" onclick="setDateValues_1week();">1 Week</button></li>
+<li><button class="btn-link" type="submit" value="Submit" name="submit_button" onclick="setDateValues_2week();">2 Week</button></li>
+<li><button class="btn-link" type="submit" value="Submit" name="submit_button" onclick="setDateValues_1month();">1 Month</button></li>
+<li><button class="btn-link" type="submit" value="Submit" name="submit_button" onclick="setDateValues_3months();">3 Months</button></li>
+<li><button class="btn-link" type="submit" value="Submit" name="submit_button" onclick="setDateValues_6months();">6 Months</button></li>
+<li><button class="btn-link" type="submit" value="Submit" name="submit_button" onclick="setDateValues_1year();">1 Year</button></li>
+</ul><p></p>
+
+<h2 id="LOOKUPS_IEXE0101"> US Dollar </h2><div class="table-responsive"></div><div class="table-responsive"><table class="table table-bordered table-striped table-hover rates sortable series"><thead><tr class="odd">	<th class="header headerSortDown">Date</th>	<th class="header">1  USD  -&gt; LKR</th>	<th class="header">1 LKR -&gt;  USD </th></tr></thead><tbody><tr class="odd"><td> 2026-10-09 </td><td> 330.9617 </td><td> 0.003 </td></tr><tr class="odd"><td> 2026-10-08 </td><td> 330.9842 </td><td> 0.003 </td></tr><tr class="odd"><td> 2026-10-07 </td><td> 330.8714 </td><td> 0.003 </td></tr><tr class="odd"><td> 2026-10-06 </td><td> 330.6209 </td><td> 0.003 </td></tr><tr class="odd"><td> 2026-10-05 </td><td> 330.6009 </td><td> 0.003 </td></tr><tr class="odd"><td> 2026-10-02 </td><td> 330.6231 </td><td> 0.003 </td></tr><tr class="odd"><td> 2026-10-01 </td><td> 330.7005 </td><td> 0.003 </td></tr></tbody></table></div></div></div>
+        </div>
+    </div>
+</div>
+
+</div> <!-- Closes Main Container div -->
+
+<script>
+	$(document).ready(function() {
+
+    // assuming the controls you want to attach the plugin to
+    // have the "datepicker" class set
+    $('input.datepicker').Zebra_DatePicker();
+
+});
+
+function formatDate(date) {
+    var d = new Date(date),
+        month = '' + (d.getMonth() + 1),
+        day = '' + d.getDate(),
+        year = d.getFullYear();
+
+    if (month.length < 2) month = '0' + month;
+    if (day.length < 2) day = '0' + day;
+
+    return [year, month, day].join('-');
+}
+
+function setDateValues_1week()
+{
+	var now = new Date();
+	document.getElementById("startDate").value = formatDate(now.setDate(now.getDate() - 6));
+    document.getElementById("endDate").value = formatDate(new Date());
+    //alert(document.getElementById("startDate").value);
+}
+
+function setDateValues_2week()
+{
+	var now = new Date();
+	document.getElementById("startDate").value = formatDate(now.setDate(now.getDate() - 13));
+    document.getElementById("endDate").value = formatDate(new Date());
+    //alert(document.getElementById("startDate").value);
+}
+
+function setDateValues_1month()
+{
+	var now = new Date();
+	document.getElementById("startDate").value = formatDate(now.setDate(now.getDate() - 29));
+    document.getElementById("endDate").value = formatDate(new Date());
+    //alert(document.getElementById("startDate").value);
+}
+
+function setDateValues_3months()
+{
+	var now = new Date();
+	document.getElementById("startDate").value = formatDate(now.setDate(now.getDate() - 89));
+    document.getElementById("endDate").value = formatDate(new Date());
+    //alert(document.getElementById("startDate").value);
+}
+
+function setDateValues_6months()
+{
+	var now = new Date();
+	document.getElementById("startDate").value = formatDate(now.setDate(now.getDate() - 179));
+    document.getElementById("endDate").value = formatDate(new Date());
+    //alert(document.getElementById("startDate").value);
+}
+
+function setDateValues_1year()
+{
+	var now = new Date();
+	document.getElementById("startDate").value = formatDate(now.setDate(now.getDate() - 364));
+    document.getElementById("endDate").value = formatDate(new Date());
+    //alert(document.getElementById("startDate").value);
+}
+</script>
+</form>
+</body>
+</html>

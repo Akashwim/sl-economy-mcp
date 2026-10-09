@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Bootstrap Example</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+  <script type="text/javascript" src="./javascript/zebra_datepicker.js"></script>
+  <script type="text/javascript" src="./javascript/iframeResizer.contentWindow.min.js"></script>
+  <link rel="stylesheet" href="./css/default.css" type="text/css">
+</head>
+<body onload="setDefault()">
+
+<div class="container-fluid">
+
+
+    <div class="col-sm-12">
+<form class="form-horizontal" action="exrates_resultstt.php" method="post" name="lookupForm"  id="lookupForm" onsubmit="window.focus(); return checkValidArray();" role="form">
+	<fieldset>
+        <legend>Specific Date or Range</legend>
+        <input name="lookupPage" value="lookup_daily_exchange_rates.php" type="hidden">
+	    <input name="startRange" value="2006-11-11" type="hidden">
+                <div class="col-sm-offset-2 col-sm-10">
+            <div class="radio">
+                    <input id="rangeType_dates" id="rangeType" name="rangeType" value="dates" checked="checked" type="radio" onchange="getSpecificValue(this.value)">
+                
+<div class="form-inline">
+    <div class="form-group">
+        <label class="control-label">Start (or single date) </label>
+        <div class="input-group">
+        	<input class="datepicker" type="text" id="txtStart" name="txtStart" value="2026-10-09">
+       </div>
+        <label class="control-label">to</label>
+        <div class="input-group">
+        	<input class="datepicker" type="text"  id="txtEnd" name="txtEnd" value="2026-10-09">
+        </div>
+    </div>
+</div>
+<p class="small text-muted">Date Format: yyyy-mm-dd</p>
+            </div>
+            <div id="errordiv" class="text-danger form-group" style="display: none;"></div>
+            <div class="radio">
+                <div class="form-group">
+                    <label for="rangeType_range">
+                        <input id="rangeType_range" name="rangeType" value="range" type="radio" onchange="getQuickDate(this.value)">Quick Date:
+                    </label>
+                </div>
+                <div class="form-inline">
+                    <div class="form-group">
+                        <span>Latest</span>
+                        <select id="rangeValue" name="rangeValue" onchange="setQuickValueRange()" class="form-control" disabled>
+                            <option value="1" selected="selected">1 day</option>
+                            <option value="7">7 days</option>
+                            <option value="14">14 days</option>
+                            <option value="21">21 days</option>
+                            <option value="30">30 days</option>
+                            <option value="60">60 days</option>
+                        </select>
+                        <span>for daily series.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+	</fieldset>
+	<fieldset id="dailyexchange">
+        <legend>Daily Buy and Sell Rates</legend>
+        <div class="form-group">
+    	
+<div class="col-sm-offset-2 col-sm-10"><div class="checkbox"><label for="IEXE0101"><input name="chk_cur[]" value="AUD~Australian Dollar" id="chk_cur[]"  type="checkbox"> Australian Dollar</label></div></div><div class="col-sm-offset-2 col-sm-10"><div class="checkbox"><label for="IEXE0101"><input name="chk_cur[]" value="CAD~Canadian Dollar" id="chk_cur[]"  type="checkbox"> Canadian Dollar</label></div></div><div class="col-sm-offset-2 col-sm-10"><div class="checkbox"><label for="IEXE0101"><input name="chk_cur[]" value="CHF~Swiss Franc" id="chk_cur[]"  type="checkbox"> Swiss Franc</label></div></div><div class="col-sm-offset-2 col-sm-10"><div class="checkbox"><label for="IEXE0101"><input name="chk_cur[]" value="CNY~Renminbi" id="chk_cur[]"  type="checkbox"> Renminbi</label></div></div><div class="col-sm-offset-2 col-sm-10"><div class="checkbox"><label for="IEXE0101"><input name="chk_cur[]" value="EUR~Euro" id="chk_cur[]"  type="checkbox" checked> Euro</label></div></div><div class="col-sm-offset-2 col-sm-10"><div class="checkbox"><label for="IEXE0101"><input name="chk_cur[]" value="GBP~British Pound" id="chk_cur[]"  type="checkbox"> British Pound</label></div></div><div class="col-sm-offset-2 col-sm-10"><div class="checkbox"><label for="IEXE0101"><input name="chk_cur[]" value="JPY~Yen" id="chk_cur[]"  type="checkbox" checked> Yen</label></div></div><div class="col-sm-offset-2 col-sm-10"><div class="checkbox"><label for="IEXE0101"><input name="chk_cur[]" value="SGD~Singapore Dollar" id="chk_cur[]"  type="checkbox"> Singapore Dollar</label></div></div><div class="col-sm-offset-2 col-sm-10"><div class="checkbox"><label for="IEXE0101"><input name="chk_cur[]" value="USD~United States Dollar" id="chk_cur[]"  type="checkbox" checked> United States Dollar</label></div></div>                    
+        </div>
+        <div class="form-group">
+            <div class="col-sm-offset-2 col-sm-10">
+                <button class="btn btn-default" value="Select All" name="select_button" type="button" onclick="selectAll(document.lookupForm['chk_cur[]'])">Select All</button>
+                <button class="btn btn-default" value="Clear" name="clear_button" type="button" onclick="deselectAll(document.lookupForm['chk_cur[]'])">Clear</button>
+                <button class="btn btn-primary" type="submit" value="Submit" name="submit_button">Submit</button>
+                <!--a href="./exrates_results.php" class="btn btn-primary">Submit</a-->
+            </div>
+        </div>
+    </fieldset>
+</form>
+    </div>
+  </div>
+
+<script>
+	$(document).ready(function() {
+
+    // assuming the controls you want to attach the plugin to
+    // have the "datepicker" class set
+    $('input.datepicker').Zebra_DatePicker();
+
+});
+	
+function getSpecificValue() {
+    document.getElementById("rangeValue").disabled = true;
+    //document.getElementById("txtStart").disabled = false;
+    //document.getElementById("txtEnd").disabled = false;
+    
+    document.getElementById("txtStart").value = formatDate(new Date());
+    document.getElementById("txtEnd").value = formatDate(new Date());
+    
+    document.getElementById("rangeValue").value = 1;
+}
+
+function getQuickDate() {
+    document.getElementById("rangeValue").disabled = false;
+    //document.getElementById("txtStart").readonly = "readonly";
+    //document.getElementById("txtEnd").readonly = "readonly";
+    
+    document.getElementById("txtStart").value = formatDate(new Date());
+    document.getElementById("txtEnd").value = formatDate(new Date());
+}
+
+function selectAll(chk) {
+	for (i = 0; i < chk.length; i++){
+	chk[i].checked = true ;
+  }
+  //alert(chk.length);
+}
+
+function deselectAll(chk) {
+	for (i = 0; i < chk.length; i++){
+	chk[i].checked = false ;
+  }
+  //alert(chk.length);
+}
+
+function formatDate(date) {
+    var d = new Date(date),
+        month = '' + (d.getMonth() + 1),
+        day = '' + d.getDate(),
+        year = d.getFullYear();
+
+    if (month.length < 2) month = '0' + month;
+    if (day.length < 2) day = '0' + day;
+
+    return [year, month, day].join('-');
+}
+
+function setDefault()
+{
+	document.getElementById("rangeType_dates").checked = true;
+	document.getElementById("rangeValue").value = 1;
+	document.getElementById("txtStart").value = formatDate(new Date());
+    document.getElementById("txtEnd").value = formatDate(new Date());
+}
+
+function setQuickValueRange()
+{
+	var rangeSelect = document.getElementById("rangeValue");
+	var selectedRange = rangeSelect.options[rangeSelect.selectedIndex].value;
+	//alert(selectedRange);
+	var now = new Date();
+	if (selectedRange == 1)
+	{
+		document.getElementById("txtStart").value = formatDate(now.setDate(now.getDate() - 0));
+	}
+	else if (selectedRange == 7)
+	{
+		document.getElementById("txtStart").value = formatDate(now.setDate(now.getDate() - 6));
+	}
+	else if (selectedRange == 14)
+	{
+		document.getElementById("txtStart").value = formatDate(now.setDate(now.getDate() - 13));
+	}
+	else if (selectedRange == 21)
+	{
+		document.getElementById("txtStart").value = formatDate(now.setDate(now.getDate() - 20));
+	}
+	else if (selectedRange == 30)
+	{
+		document.getElementById("txtStart").value = formatDate(now.setDate(now.getDate() - 29));
+	}
+	else if (selectedRange == 60)
+	{
+		document.getElementById("txtStart").value = formatDate(now.setDate(now.getDate() - 59));
+	}
+    document.getElementById("txtEnd").value = formatDate(new Date());
+}
+</script>
+</body>
+</html>
