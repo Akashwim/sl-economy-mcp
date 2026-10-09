@@ -47,7 +47,7 @@ def get_snapshot() -> dict:
     Returns the overnight policy rate, CCPI inflation (year-on-year), the real
     policy rate (policy rate minus inflation) and the USD/LKR telegraphic
     transfer buying and selling rates, fetched live from cbsl.gov.lk, with the
-    source URL and fetch time.
+    date each figure refers to, the source URL and the fetch time.
     """
     return snapshot.get_snapshot()
 
@@ -123,15 +123,23 @@ def get_interest_rates(
 
     Returns each rate's values with a summary: first, last, change in
     percentage points, high, low and average. Long ranges are listed as
-    month-end values. For today's policy rate use get_snapshot.
+    month-end values. Lending rates and Treasury bill yields also come with
+    the latest real rate (after inflation).
 
     Args:
-        series: "lending" for commercial bank rates: the weekly prime lending
-            rate (AWPR) that company loans are priced from, plus monthly
-            average lending and deposit rates, from 2007. "treasury_bills" for
-            weekly 91, 182 and 364-day Treasury bill yields, the rupee
-            risk-free benchmark. Treasury data can take 15 seconds or more
-            and may run a few months behind.
+        series: One of:
+            "policy" - the Central Bank's own standing deposit and lending
+            facility rates, with the date and size of each change. Use this
+            to find when policy last moved. At most 12 months per call, and
+            it takes about 20 seconds.
+            "lending" - commercial bank rates: the weekly prime lending rate
+            (AWPR) that company loans are priced from, plus monthly average
+            lending and deposit rates, from 2007.
+            "treasury_bills" - weekly 91, 182 and 364-day Treasury bill
+            yields, the rupee risk-free benchmark.
+            "treasury_bonds" - yields on 2 to 30-year Treasury bonds, only in
+            weeks when each was auctioned.
+            Treasury data takes about 20 seconds and may run months behind.
         start_date: Year-month-day. Leave out for one year before end_date.
         end_date: Year-month-day. Leave out for today.
     """
@@ -148,10 +156,11 @@ def macro_briefing() -> str:
         "- get_snapshot\n"
         "- get_inflation_history for the last 24 months\n"
         "- get_exchange_rate_history for USD over the last 12 months\n"
+        "- get_interest_rates with series 'policy' for the last 12 months\n"
         "- get_interest_rates with series 'lending' for the last 12 months\n"
         "- get_interest_rates with series 'treasury_bills' for the last 12 months\n\n"
         "Then cover, in this order:\n"
-        "1. Monetary policy: the policy rate and the real policy rate.\n"
+        "1. Monetary policy: the policy rate, when it last changed, and the real policy rate.\n"
         "2. Inflation: the latest headline and core figures and the trend.\n"
         "3. The rupee: where it is against the dollar and how far it has moved in 12 months.\n"
         "4. Borrowing costs: the prime lending rate and Treasury bill yields, and their direction.\n"

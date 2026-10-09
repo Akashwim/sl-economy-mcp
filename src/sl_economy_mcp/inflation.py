@@ -67,6 +67,11 @@ def parse_inflation_table(html: str) -> Table:
     return dict(sorted(table.items()))
 
 
+def load_table() -> Table:
+    """CBSL's inflation table as it stands now."""
+    return parse_inflation_table(fetch(TABLE_URL).text)
+
+
 def months_between(first: str, last: str) -> list[str]:
     """Every month from `first` to `last` inclusive, e.g. "2025-11", "2025-12", "2026-01"."""
     year, month = int(first[:4]), int(first[5:])
@@ -75,6 +80,12 @@ def months_between(first: str, last: str) -> list[str]:
         months.append(f"{year}-{month:02d}")
         year, month = (year + 1, 1) if month == 12 else (year, month + 1)
     return months
+
+
+def months_back(month: str, count: int) -> str:
+    """The month `count` months before `month`, e.g. two back from "2026-01" is "2025-11"."""
+    total = int(month[:4]) * 12 + int(month[5:]) - 1 - count
+    return f"{total // 12}-{total % 12 + 1:02d}"
 
 
 def get_inflation_history(start_month: str | None = None, end_month: str | None = None) -> dict:

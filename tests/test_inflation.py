@@ -36,6 +36,11 @@ def test_clear_error_when_the_page_changes():
         inflation.parse_inflation_table("<html><body>Site under maintenance</body></html>")
 
 
+def test_months_back_crosses_year_ends():
+    assert inflation.months_back("2026-01", 2) == "2025-11"
+    assert inflation.months_back("2026-09", 0) == "2026-09"
+
+
 def test_months_between_crosses_year_ends():
     assert inflation.months_between("2025-11", "2026-02") == [
         "2025-11", "2025-12", "2026-01", "2026-02",

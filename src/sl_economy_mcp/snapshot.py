@@ -10,10 +10,12 @@ and find each number by the label next to it.
 """
 
 import re
+from datetime import timedelta
 from html.parser import HTMLParser
 
-from . import DISCLAIMER
-from .errors import PageChanged
+from . import DISCLAIMER, exchange_rates, inflation
+from .dates import today_in_sri_lanka
+from .errors import ExpectedProblem, PageChanged
 from .fetch import fetch
 
 RATE_WINDOW_URL = "https://www.cbsl.gov.lk/cbsl_custom/param/ratewindow.php"
@@ -85,6 +87,32 @@ def parse_rate_window(html: str) -> dict[str, float]:
     return values
 
 
+def inflation_month(rate: float) -> str:
+    """Which month the headline inflation figure is for, from CBSL's monthly table."""
+    try:
+        table = inflation.load_table()
+    except ExpectedProblem:
+        return "not confirmed (CBSL's inflation table could not be read)"
+    published = [month for month, figures in table.items() if figures["ccpi_headline"] is not None]
+    latest = max(published)
+    if table[latest]["ccpi_headline"] == rate:
+        return latest
+    return f"not confirmed (CBSL's table shows {table[latest]['ccpi_headline']} for {latest})"
+
+
+def usd_rate_date(buy: float, sell: float) -> str:
+    """Which day the USD buying and selling rates are for, from CBSL's dated lookup."""
+    today = today_in_sri_lanka()
+    try:
+        rows, _ = exchange_rates.lookup(exchange_rates.TT, "USD", today - timedelta(days=14), today)
+    except ExpectedProblem:
+        return "not confirmed (CBSL's dated rates could not be read)"
+    matches = [day for day, dated_buy, dated_sell in rows if (dated_buy, dated_sell) == (buy, sell)]
+    if matches:
+        return max(matches).isoformat()
+    return "not confirmed (no matching day in CBSL's dated rates)"
+
+
 def get_snapshot() -> dict:
     page = fetch(RATE_WINDOW_URL)
     values = parse_rate_window(page.text)
@@ -106,11 +134,20 @@ def get_snapshot() -> dict:
                 "by commercial banks in Colombo at 9.30 a.m."
             ),
         },
-        "data_date": (
-            "Not stated by CBSL on this page. These are the latest values "
-            "CBSL was showing at the fetch time below. For a dated exchange "
-            "rate use get_exchange_rate."
-        ),
+        "data_dates": {
+            "ccpi_inflation_percent": inflation_month(values["ccpi_inflation_percent"]),
+            "overnight_policy_rate_percent": (
+                "The rate in force when fetched. For when it last changed, use "
+                "get_interest_rates with series 'policy'."
+            ),
+            "usd_lkr_tt_buy / usd_lkr_tt_sell": usd_rate_date(
+                values["usd_lkr_tt_buy"], values["usd_lkr_tt_sell"]
+            ),
+            "how_dated": (
+                "CBSL's headline page shows no dates, so each figure is matched "
+                "against CBSL's dated tables."
+            ),
+        },
         **page.stamp(),
         "disclaimer": DISCLAIMER,
     }

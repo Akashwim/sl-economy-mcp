@@ -59,11 +59,16 @@ def hidden_fields(html: str) -> dict[str, str]:
     return fields
 
 
-def parse_grid(html: str, title: str, value_columns: int) -> list[Row]:
+def parse_grid(
+    html: str, title: str, value_columns: int, wanted: set[int] | None = None
+) -> list[Row]:
     """The rows of a results table, oldest first. Empty if the library found nothing.
 
     `title` and `value_columns` say what we expect, so a different report or
     a table with a column added or removed is reported and not misread.
+    `wanted` lists the positions to read; the rest come back as None. CBSL's
+    tables have the odd typo, and one in a column we never use should not
+    spoil the columns we do.
     """
     start = html.find('id="statTB"')
     if start == -1 or title not in html:
@@ -80,7 +85,11 @@ def parse_grid(html: str, title: str, value_columns: int) -> list[Row]:
         try:
             if len(cells) != value_columns + 1:
                 raise ValueError("wrong number of columns")
-            rows.append((date.fromisoformat(cells[0]), [number(cell) for cell in cells[1:]]))
+            figures = [
+                number(cell) if wanted is None or position in wanted else None
+                for position, cell in enumerate(cells[1:])
+            ]
+            rows.append((date.fromisoformat(cells[0]), figures))
         except ValueError as error:
             raise PageChanged(
                 f"Unexpected row in CBSL's '{title}' table: {cells}. "
