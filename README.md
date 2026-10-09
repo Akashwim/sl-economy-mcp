@@ -76,7 +76,7 @@ src/sl_economy_mcp/
 
 Design choices:
 
-- **Live, not stored.** Nothing is saved between runs. A 5-minute cache stops repeated questions from hitting CBSL again and again.
+- **Live, not stored.** Nothing is saved between runs. A short cache stops repeated questions from hitting CBSL again and again: 5 minutes for most pages, an hour for the slow Data Library tables, which change weekly at most.
 - **One outside dependency**, the official MCP Python SDK. Downloading and reading pages uses Python's standard library.
 - **Fail loudly.** If a CBSL page changes shape, the tool says so. It never guesses a number.
 - **Honest about gaps.** Where CBSL's data is missing or running behind, the answer says so.
@@ -103,7 +103,7 @@ Design choices:
 - Treasury and policy rate searches take about 20 seconds, and the Data Library's Treasury figures sometimes run months behind. The tool reports the date of the latest figure it found.
 - Policy rate history is limited to 12 months per request because CBSL's source is slow.
 - Treasury bond yields exist only for weeks in which CBSL auctioned that maturity, so they are sparse.
-- Real rates use past inflation (the latest year-on-year figure), so they are a rough guide, not a forecast.
+- Real rates are given two ways: the rate minus inflation, and the Fisher equation, which is more exact when inflation is high. Both use past inflation (the latest year-on-year figure), so they are a rough guide, not a forecast.
 
 ## Running the tests
 

@@ -199,6 +199,7 @@ def test_real_rate_uses_inflation_for_the_same_month(fake_library):
     result = interest_rates.get_interest_rates("treasury_bills", "2026-06-01", "2026-10-09")
     assert result["rates"]["364_day"]["real_rate_latest"] == {
         "value": 2.91,  # 10.21 yield - 7.30 inflation
+        "fisher_value": 2.71,  # 1.1021 / 1.073 - 1
         "rate": 10.21,
         "rate_date": "2026-07-09",
         "inflation": 7.3,
@@ -212,6 +213,7 @@ def test_real_rate_falls_back_to_the_latest_published_month(fake_library):
     real = result["rates"]["prime_lending_rate"]["real_rate_latest"]
     assert real["inflation_month"] == "2026-09"
     assert real["value"] == 3.04  # 11.04 - 8.00
+    assert real["fisher_value"] == 2.81  # 1.1104 / 1.08 - 1
 
 
 def test_real_rate_is_left_out_when_inflation_is_too_old():

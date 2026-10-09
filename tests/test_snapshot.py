@@ -74,6 +74,7 @@ def fake_cbsl(monkeypatch):
 def test_snapshot_adds_real_rate_source_and_time(fake_cbsl):
     result = snapshot.get_snapshot()
     assert result["real_policy_rate_percent"] == 0.75  # 8.75 policy rate - 8.00 inflation
+    assert result["real_policy_rate_fisher_percent"] == 0.69  # 1.0875 / 1.08 - 1
     assert result["source_url"] == snapshot.RATE_WINDOW_URL
     assert result["fetched_at_utc"] == "2026-10-09T08:00:00+00:00"
     assert "disclaimer" in result

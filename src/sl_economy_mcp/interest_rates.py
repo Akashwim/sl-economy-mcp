@@ -17,7 +17,7 @@ from datetime import timedelta
 from . import DISCLAIMER, data_library, inflation
 from .dates import parse_day, today_in_sri_lanka
 from .errors import ExpectedProblem, InvalidRequest, NoData
-from .series import Series, describe, month_ends
+from .series import Series, describe, fisher_real_rate, month_ends
 
 
 @dataclass(frozen=True)
@@ -148,6 +148,7 @@ def real_rate(point: tuple, table: inflation.Table) -> dict | None:
     price_rise = table[max(usable)]["ccpi_headline"]
     return {
         "value": round(rate - price_rise, 2),
+        "fisher_value": fisher_real_rate(rate, price_rise),
         "rate": rate,
         "rate_date": day.isoformat(),
         "inflation": price_rise,
@@ -241,9 +242,12 @@ def get_interest_rates(
                 if after_inflation:
                     rates[column]["real_rate_latest"] = after_inflation
             result["real_rate_note"] = (
-                "real_rate_latest is the latest rate minus headline CCPI inflation "
-                "for that month, worked out by this tool. It is a rough guide to "
-                "the return or cost after price rises, using past inflation."
+                "real_rate_latest is worked out by this tool from the latest rate "
+                "and headline CCPI inflation for that month. 'value' is the rate "
+                "minus inflation. 'fisher_value' uses the Fisher equation, "
+                "(1 + rate) / (1 + inflation) - 1, which is more exact when "
+                "inflation is high. Both use past inflation, so they are a rough "
+                "guide to the return or cost after price rises, not a forecast."
             )
         except ExpectedProblem as problem:
             result["real_rate_note"] = f"Real rates left out: {problem}"

@@ -17,6 +17,7 @@ from . import DISCLAIMER, exchange_rates, inflation
 from .dates import today_in_sri_lanka
 from .errors import ExpectedProblem, PageChanged
 from .fetch import fetch
+from .series import fisher_real_rate
 
 RATE_WINDOW_URL = "https://www.cbsl.gov.lk/cbsl_custom/param/ratewindow.php"
 
@@ -116,10 +117,11 @@ def usd_rate_date(buy: float, sell: float) -> str:
 def get_snapshot() -> dict:
     page = fetch(RATE_WINDOW_URL)
     values = parse_rate_window(page.text)
-    real_rate = values["overnight_policy_rate_percent"] - values["ccpi_inflation_percent"]
+    policy_rate, price_rise = values["overnight_policy_rate_percent"], values["ccpi_inflation_percent"]
     return {
         **values,
-        "real_policy_rate_percent": round(real_rate, 2),
+        "real_policy_rate_percent": round(policy_rate - price_rise, 2),
+        "real_policy_rate_fisher_percent": fisher_real_rate(policy_rate, price_rise),
         "notes": {
             "ccpi_inflation_percent": (
                 "Year-on-year change in the Colombo Consumer Price Index, latest month published."
@@ -128,6 +130,10 @@ def get_snapshot() -> dict:
             "real_policy_rate_percent": (
                 "Policy rate minus inflation, worked out by this tool. A rough "
                 "guide to how tight policy is once price rises are allowed for."
+            ),
+            "real_policy_rate_fisher_percent": (
+                "The same idea by the Fisher equation, (1 + rate) / (1 + inflation) - 1, "
+                "which is more exact when inflation is high."
             ),
             "usd_lkr_tt_buy / usd_lkr_tt_sell": (
                 "Rupees per US dollar: average telegraphic transfer rates quoted "

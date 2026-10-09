@@ -23,6 +23,16 @@ def _point(point: tuple[date, float]) -> dict:
     return {"date": point[0].isoformat(), "value": point[1]}
 
 
+def fisher_real_rate(rate: float, inflation: float) -> float:
+    """A rate after inflation, by the Fisher equation: (1 + rate) / (1 + inflation) - 1.
+
+    Subtracting inflation from the rate is a shortcut that is close when both
+    are small and drifts as they grow. Both arguments and the result are in
+    percent, e.g. 11.04 and 8.0 give 2.81.
+    """
+    return round(((1 + rate / 100) / (1 + inflation / 100) - 1) * 100, 2)
+
+
 def month_ends(series: Series) -> Series:
     """Keep only the last published value of each calendar month."""
     last_in_month = {}

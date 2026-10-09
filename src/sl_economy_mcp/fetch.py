@@ -84,10 +84,10 @@ def download(
 _cache: dict[tuple, tuple[float, Page]] = {}
 
 
-def cached(key: tuple, get_page) -> Page:
+def cached(key: tuple, get_page, seconds: int = CACHE_SECONDS) -> Page:
     """The page saved under `key` if it is recent, otherwise whatever `get_page()` returns."""
     saved = _cache.get(key)
-    if saved and time.monotonic() - saved[0] < CACHE_SECONDS:
+    if saved and time.monotonic() - saved[0] < seconds:
         return saved[1]
     page = get_page()
     _cache[key] = (time.monotonic(), page)

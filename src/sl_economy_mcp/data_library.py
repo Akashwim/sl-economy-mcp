@@ -19,6 +19,7 @@ from .tables import number, rows_of_cells
 FRONT_DOOR = "https://www.cbsl.lk/eResearch/MoneyMarketRatesDefault.aspx?ReportId="
 FIELD = "ctl00$ContentPlaceHolder1$"  # prefix the library puts on its form fields
 TIMEOUT_SECONDS = 45  # some reports take 15 seconds or more
+CACHE_SECONDS = 60 * 60  # these tables change weekly at most and are slow to fetch
 
 Row = tuple[date, list[float | None]]  # a date and the figures beside it
 
@@ -29,8 +30,9 @@ def report_url(report_id: int) -> str:
 
 
 def search(report_id: int, start: date, end: date) -> Page:
-    """One report's results between two dates, kept for a few minutes like any page."""
-    return cached(("data-library", report_id, start, end), lambda: _search(report_id, start, end))
+    """One report's results between two dates, kept for an hour."""
+    key = ("data-library", report_id, start, end)
+    return cached(key, lambda: _search(report_id, start, end), seconds=CACHE_SECONDS)
 
 
 def _search(report_id: int, start: date, end: date) -> Page:

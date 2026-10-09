@@ -7,7 +7,8 @@ import pytest
 
 from sl_economy_mcp import fetch as fetch_module
 from sl_economy_mcp.errors import SourceUnavailable
-from sl_economy_mcp.fetch import fetch
+from sl_economy_mcp.fetch import cached, fetch
+from sl_economy_mcp.series import fisher_real_rate
 
 
 @pytest.fixture
@@ -59,3 +60,27 @@ def test_network_failure_becomes_a_readable_error(monkeypatch):
     monkeypatch.setattr(fetch_module.urllib.request, "urlopen", broken_urlopen)
     with pytest.raises(SourceUnavailable, match="Could not reach CBSL"):
         fetch("https://example.test/page")
+
+
+def test_slow_pages_can_be_kept_longer(monkeypatch):
+    clock = [1000.0]
+    monkeypatch.setattr(fetch_module.time, "monotonic", lambda: clock[0])
+    downloads = []
+
+    def get_page():
+        downloads.append(1)
+        return "page"
+
+    cached(("slow",), get_page, seconds=3600)
+    clock[0] += 30 * 60  # half an hour later: still fresh
+    cached(("slow",), get_page, seconds=3600)
+    assert len(downloads) == 1
+    clock[0] += 31 * 60  # just over the hour: fetched again
+    cached(("slow",), get_page, seconds=3600)
+    assert len(downloads) == 2
+
+
+def test_fisher_real_rate_matters_most_when_inflation_is_high():
+    assert fisher_real_rate(11.04, 8.0) == 2.81  # simple subtraction gives 3.04
+    assert fisher_real_rate(28.0, 60.0) == -20.0  # simple subtraction gives -32
+    assert fisher_real_rate(5.0, 0.0) == 5.0
