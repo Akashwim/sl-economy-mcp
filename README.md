@@ -1,6 +1,7 @@
 # sl-economy-mcp
 
 [![tests](https://github.com/Akashwim/sl-economy-mcp/actions/workflows/tests.yml/badge.svg)](https://github.com/Akashwim/sl-economy-mcp/actions/workflows/tests.yml)
+[![live check](https://github.com/Akashwim/sl-economy-mcp/actions/workflows/live-check.yml/badge.svg)](https://github.com/Akashwim/sl-economy-mcp/actions/workflows/live-check.yml)
 
 An unofficial [MCP](https://modelcontextprotocol.io) server that lets Claude and other AI assistants fetch live, official Sri Lankan economic data from the [Central Bank of Sri Lanka](https://www.cbsl.gov.lk) (CBSL).
 
@@ -110,6 +111,14 @@ Design choices:
 ```bash
 .venv/bin/pip install ".[dev]"
 .venv/bin/python -m pytest
+```
+
+## Live check
+
+The tests above use saved pages, so they cannot notice CBSL changing its website. A second check does: every weekday GitHub calls each tool against the real CBSL site and checks the answers are plausible (for example, a buying rate below the selling rate, and a prime lending rate no more than three weeks old). If a page has changed shape, the check fails and the maintainer is emailed. If CBSL is simply unreachable, it only warns.
+
+```bash
+.venv/bin/python checks/live_check.py
 ```
 
 ## Disclaimer

@@ -1,0 +1,20 @@
+# Calls every tool against the real CBSL website each weekday, so that a
+# change to CBSL's pages is noticed the same day. GitHub emails the repository
+# owner when it fails. It can also be started by hand from the Actions tab.
+name: live check
+
+on:
+  schedule:
+    - cron: "30 7 * * 1-5" # 07:30 UTC = 1 p.m. in Sri Lanka, Monday to Friday
+  workflow_dispatch:
+
+jobs:
+  live-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: pip install .
+      - run: python checks/live_check.py
