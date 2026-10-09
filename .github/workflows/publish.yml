@@ -1,0 +1,24 @@
+# Publishes the package to PyPI when a release is created on GitHub, so that
+# anyone can install it with one command. It uses PyPI's "trusted publishing":
+# PyPI is told to trust this workflow in this repository, so no password or
+# secret key is stored anywhere.
+name: publish
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # lets GitHub prove to PyPI which repository this is
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: pip install build ".[dev]"
+      - run: python -m pytest
+      - run: python -m build
+      - uses: pypa/gh-action-pypi-publish@release/v1
