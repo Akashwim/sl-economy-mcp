@@ -35,7 +35,7 @@ python3 -m venv .venv
 .venv/bin/pip install .
 ```
 
-Then tell the Claude desktop app about it. Open **Settings → Developer → Edit Config** and add:
+Then tell the Claude desktop app about it. **Settings → Developer → Edit Config** shows you where the settings file is. Quit Claude completely before you change it, because the running app can overwrite the file. Then add:
 
 ```json
 {
@@ -47,7 +47,7 @@ Then tell the Claude desktop app about it. Open **Settings → Developer → Edi
 }
 ```
 
-Quit and reopen Claude. The three tools should appear in the tools menu.
+Save the file and open Claude again. The three tools should appear in the tools menu.
 
 ## How it works
 
