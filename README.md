@@ -39,28 +39,56 @@ There is also one ready-made prompt, **Sri Lanka macro briefing**. Choose it fro
 
 ## Install
 
-You need Python 3.10 or newer.
+The package is on [PyPI](https://pypi.org/project/sl-economy-mcp/) as `sl-economy-mcp`. In each case below, quit Claude completely before changing its settings file, because the running app can overwrite it. **Settings → Developer → Edit Config** shows you where the file is.
 
-```bash
-git clone https://github.com/Akashwim/sl-economy-mcp.git
-cd sl-economy-mcp
-python3 -m venv .venv
-.venv/bin/pip install .
-```
+### If you have uv
 
-Then tell the Claude desktop app about it. **Settings → Developer → Edit Config** shows you where the settings file is. Quit Claude completely before you change it, because the running app can overwrite the file. Then add:
+With [uv](https://docs.astral.sh/uv/) installed there is nothing to install by hand. Add this to the settings file:
 
 ```json
 {
   "mcpServers": {
     "sl-economy": {
-      "command": "/full/path/to/sl-economy-mcp/.venv/bin/sl-economy-mcp"
+      "command": "uvx",
+      "args": ["sl-economy-mcp"]
+    }
+  }
+}
+```
+
+### With plain Python
+
+You need Python 3.10 or newer.
+
+```bash
+python3 -m venv ~/sl-economy-mcp-env
+~/sl-economy-mcp-env/bin/pip install sl-economy-mcp
+```
+
+Then add this to the settings file, with your own username in the path:
+
+```json
+{
+  "mcpServers": {
+    "sl-economy": {
+      "command": "/Users/YOUR-NAME/sl-economy-mcp-env/bin/sl-economy-mcp"
     }
   }
 }
 ```
 
 Save the file and open Claude again. The five tools should appear in the tools menu.
+
+### From the source code
+
+To read or change the code, clone the repository and install it from the folder:
+
+```bash
+git clone https://github.com/Akashwim/sl-economy-mcp.git
+cd sl-economy-mcp
+python3 -m venv .venv
+.venv/bin/pip install ".[dev]"
+```
 
 ## How it works
 
@@ -113,8 +141,9 @@ Design choices:
 
 ## Running the tests
 
+From a copy of the source code (see above):
+
 ```bash
-.venv/bin/pip install ".[dev]"
 .venv/bin/python -m pytest
 ```
 
