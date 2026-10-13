@@ -9,3 +9,7 @@ connect-claude.command
 connect-claude.log
 sl-economy-mcp-source-code.html
 sl-economy-mcp-methods-and-code.docx
+
+# Never publish credentials
+*recovery_codes*
+*recovery-codes*
