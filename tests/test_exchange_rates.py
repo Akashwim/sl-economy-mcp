@@ -162,6 +162,14 @@ def test_form_is_submitted_with_the_right_currency_and_dates(fake_cbsl):
     assert submitted[0]["txtEnd"] == "2026-10-09"
 
 
+def test_bank_rates_not_out_yet_are_explained(fake_cbsl):
+    pages, _ = fake_cbsl
+    pages[fx.TT.results_url] = TT_USD.replace("2026-10-09", "2026-09-30")  # today's row missing
+    result = fx.get_exchange_rate("USD", "2026-10-09")
+    assert result["indicative_rate"] == 330.9617
+    assert "Not published for 2026-10-09" in result["bank_tt_rates"]
+
+
 def test_currency_without_bank_rates_says_so(fake_cbsl):
     result = fx.get_exchange_rate("INR", "2026-10-09")
     assert "Not published for this currency" in result["bank_tt_rates"]

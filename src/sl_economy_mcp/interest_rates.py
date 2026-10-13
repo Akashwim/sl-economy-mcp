@@ -30,6 +30,7 @@ class Report:
     max_days: int | None = None  # longest range allowed, for reports that are slow
     list_changes: bool = False  # rates that are set, not traded: list each change
     real_rates: bool = False  # also give the latest rate after inflation
+    default_days: int = 365  # range used when no start date is given; shorter for slow reports
 
 
 BOND_YEARS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 30]  # in CBSL's column order
@@ -60,6 +61,7 @@ REPORTS = {
         },
         max_days=366,
         list_changes=True,
+        default_days=183,
     ),
     "lending": Report(
         report_id=6277,
@@ -106,6 +108,7 @@ REPORTS = {
             "364_day": (2, "Yield on 364-day (1-year) Treasury bills."),
         },
         real_rates=True,
+        default_days=183,
     ),
     "treasury_bonds": Report(
         report_id=6169,
@@ -120,10 +123,11 @@ REPORTS = {
             f"{years}_year": (3 + position, f"Yield on {years}-year Treasury bonds.")
             for position, years in enumerate(BOND_YEARS)
         },
+        default_days=183,
     ),
 }
 
-DEFAULT_RANGE_DAYS = 365
+FALLBACK_RANGE_DAYS = 365  # tried when a shorter default range comes back empty
 MONTHLY_ABOVE = 120  # longer series are listed as month-ends instead
 BEHIND_AFTER_DAYS = 21  # weekly data this old means CBSL's library is running behind
 
@@ -192,7 +196,7 @@ def get_interest_rates(
         )
     report = REPORTS[name]
     end = parse_day(end_date) if end_date else today_in_sri_lanka()
-    start = parse_day(start_date) if start_date else end - timedelta(days=DEFAULT_RANGE_DAYS)
+    start = parse_day(start_date) if start_date else end - timedelta(days=report.default_days)
     if start > end:
         raise InvalidRequest(f"start_date ({start}) must be on or before end_date ({end}).")
     if report.max_days and (end - start).days > report.max_days:
@@ -201,9 +205,19 @@ def get_interest_rates(
             f"at a time. You asked for {start} to {end}."
         )
 
-    page = data_library.search(report.report_id, start, end)
     wanted = {position for position, _ in report.columns.values()}
-    rows = data_library.parse_grid(page.text, report.title, report.value_columns, wanted)
+
+    def read(since):
+        found = data_library.search(report.report_id, since, end)
+        table = data_library.parse_grid(found.text, report.title, report.value_columns, wanted)
+        return found, [row for row in table if any(figure is not None for figure in row[1])]
+
+    page, rows = read(start)
+    if not rows and not start_date and report.default_days < FALLBACK_RANGE_DAYS:
+        # The short default range found nothing, which happens when CBSL's
+        # library is running months behind. Look back a full year instead.
+        start = end - timedelta(days=FALLBACK_RANGE_DAYS)
+        page, rows = read(start)
 
     rates, latest_dates = {}, []
     for column, (position, meaning) in report.columns.items():
@@ -214,7 +228,10 @@ def get_interest_rates(
                 rates[column]["changes"] = changes(values)
             latest_dates.append(values[-1][0])
     if not rates:
-        raise NoData(f"CBSL's Data Library has no {name} rates between {start} and {end}.")
+        raise NoData(
+            f"CBSL's Data Library has no {name} rates between {start} and {end}. "
+            "It sometimes runs months behind, so an earlier start date may find the latest figures."
+        )
 
     latest = max(latest_dates)
     result = {

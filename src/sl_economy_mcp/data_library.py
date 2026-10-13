@@ -9,16 +9,18 @@ A browser does both without you noticing. `search()` does the same two steps.
 """
 
 import re
+import time
 from datetime import date
 from html import unescape
 
-from .errors import PageChanged
+from .errors import PageChanged, SourceUnavailable
 from .fetch import Page, cached, download, new_session
 from .tables import number, rows_of_cells
 
 FRONT_DOOR = "https://www.cbsl.lk/eResearch/MoneyMarketRatesDefault.aspx?ReportId="
 FIELD = "ctl00$ContentPlaceHolder1$"  # prefix the library puts on its form fields
-TIMEOUT_SECONDS = 45  # some reports take 15 seconds or more
+TIMEOUT_SECONDS = 90  # the same search has taken 20 seconds one day and 46 the next
+RETRY_AFTER_SECONDS = 5  # one more try after a failure, with a fresh visit
 CACHE_SECONDS = 60 * 60  # these tables change weekly at most and are slow to fetch
 
 Row = tuple[date, list[float | None]]  # a date and the figures beside it
@@ -32,7 +34,24 @@ def report_url(report_id: int) -> str:
 def search(report_id: int, start: date, end: date) -> Page:
     """One report's results between two dates, kept for an hour."""
     key = ("data-library", report_id, start, end)
-    return cached(key, lambda: _search(report_id, start, end), seconds=CACHE_SECONDS)
+    return cached(key, lambda: _search_twice(report_id, start, end), seconds=CACHE_SECONDS)
+
+
+def _search_twice(report_id: int, start: date, end: date) -> Page:
+    """Search, and if CBSL does not answer, wait a moment and try once more."""
+    try:
+        return _search(report_id, start, end)
+    except SourceUnavailable:
+        time.sleep(RETRY_AFTER_SECONDS)
+    try:
+        return _search(report_id, start, end)
+    except SourceUnavailable as problem:
+        raise SourceUnavailable(
+            "CBSL's Data Library did not answer after two tries. It is often slow "
+            "and sometimes down. Try again in a few minutes, or ask for a shorter "
+            f"date range, which is quicker. The table can be opened by hand at "
+            f"{report_url(report_id)}"
+        ) from problem
 
 
 def _search(report_id: int, start: date, end: date) -> Page:

@@ -105,7 +105,8 @@ Design choices:
 - CBSL's online exchange rate lookup starts on 7 May 2010. It is complete from 2014 onwards and has many missing days before that.
 - Bank buying and selling rates exist for nine currencies: AUD, CAD, CHF, CNY, EUR, GBP, JPY, SGD and USD.
 - CBSL's inflation table covers about six years and currently skips 2023. The tool points out the gap.
-- Treasury and policy rate searches take about 20 seconds, and the Data Library's Treasury figures sometimes run months behind. The tool reports the date of the latest figure it found.
+- Treasury and policy rate searches are slow, and CBSL's speed varies from day to day: about 30 seconds for 6 months and up to a minute for 12. To keep ordinary questions quicker, the tool looks at the last 6 months of policy rates and Treasury yields unless you ask for a longer range. If that short look finds nothing, because CBSL is running behind, it looks back a full year. It waits up to 90 seconds and tries twice before reporting a failure.
+- The Data Library's Treasury figures sometimes run months behind. The tool reports the date of the latest figure it found.
 - Policy rate history is limited to 12 months per request because CBSL's source is slow.
 - Treasury bond yields exist only for weeks in which CBSL auctioned that maturity, so they are sparse.
 - Real rates are given two ways: the rate minus inflation, and the Fisher equation, which is more exact when inflation is high. Both use past inflation (the latest year-on-year figure), so they are a rough guide, not a forecast.
@@ -119,7 +120,9 @@ Design choices:
 
 ## Live check
 
-The tests above use saved pages, so they cannot notice CBSL changing its website. A second check does: every weekday GitHub calls each tool against the real CBSL site and checks the answers are plausible (for example, a buying rate below the selling rate, and a prime lending rate no more than three weeks old). If a page has changed shape, the check fails and the maintainer is emailed. If CBSL is simply unreachable, it only warns.
+The tests above use saved pages, so they cannot notice CBSL changing its website. A second check does: every weekday GitHub calls each tool against the real CBSL site and checks the answers are plausible (for example, a buying rate below the selling rate, and a prime lending rate no more than three weeks old). If a page has changed shape, the check fails and the maintainer is emailed. If one or two tools cannot reach CBSL, it only warns. If more than that are unreachable it fails, so a green tick always means the tools were really tested.
+
+CBSL's site sometimes refuses GitHub's servers ("HTTP 403") while working normally for everyone else. A red live check with that message means GitHub was blocked that day, not that the tool is broken. The check can be run from any ordinary connection:
 
 ```bash
 .venv/bin/python checks/live_check.py

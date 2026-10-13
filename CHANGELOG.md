@@ -10,3 +10,4 @@ First public version.
 - `get_interest_rates`: policy rates with each change, bank lending and deposit rates, Treasury bill and bond yields, with real rates.
 - "Sri Lanka macro briefing" prompt.
 - Weekday live check against the real CBSL site.
+- Slow Data Library searches: shorter default ranges, a 90-second limit and one retry.

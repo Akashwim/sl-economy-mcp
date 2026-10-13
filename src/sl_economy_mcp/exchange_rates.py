@@ -206,6 +206,12 @@ def get_exchange_rate(currency: str = "USD", on_date: str | None = None) -> dict
                     ),
                     "source_url": TT.public_url,
                 }
+                break
+        else:
+            result["bank_tt_rates"] = (
+                f"Not published for {day}. CBSL posts buying and selling rates "
+                "separately from the indicative rate, and they can appear later in the day."
+            )
     else:
         result["bank_tt_rates"] = (
             "Not published for this currency. CBSL gives buying and selling "

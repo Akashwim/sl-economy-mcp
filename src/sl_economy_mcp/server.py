@@ -130,8 +130,8 @@ def get_interest_rates(
         series: One of:
             "policy" - the Central Bank's own standing deposit and lending
             facility rates, with the date and size of each change. Use this
-            to find when policy last moved. At most 12 months per call, and
-            it takes about 20 seconds.
+            to find when policy last moved. Last 6 months by default, at most
+            12 months per call.
             "lending" - commercial bank rates: the weekly prime lending rate
             (AWPR) that company loans are priced from, plus monthly average
             lending and deposit rates, from 2007.
@@ -139,8 +139,12 @@ def get_interest_rates(
             yields, the rupee risk-free benchmark.
             "treasury_bonds" - yields on 2 to 30-year Treasury bonds, only in
             weeks when each was auctioned.
-            Treasury data takes about 20 seconds and may run months behind.
-        start_date: Year-month-day. Leave out for one year before end_date.
+            Policy and Treasury series cover the last 6 months by default.
+            Their searches are slow: about 30 seconds for 6 months and up to
+            a minute for 12, so only ask for a longer range when the question
+            needs it. Treasury data may run months behind.
+        start_date: Year-month-day. Leave out for the default range above
+            (12 months for lending).
         end_date: Year-month-day. Leave out for today.
     """
     return interest_rates.get_interest_rates(series, start_date, end_date)

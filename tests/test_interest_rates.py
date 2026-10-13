@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from sl_economy_mcp import data_library, inflation, interest_rates
-from sl_economy_mcp.errors import InvalidRequest, NoData, PageChanged
+from sl_economy_mcp.errors import InvalidRequest, NoData, PageChanged, SourceUnavailable
 from sl_economy_mcp.fetch import Page
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -93,6 +93,46 @@ def test_search_arrives_by_the_front_door_then_submits_the_dates(monkeypatch):
     assert first_session is second_session  # same visit, so the cookie is sent back
 
 
+def test_search_tries_once_more_when_cbsl_does_not_answer(monkeypatch):
+    attempts, waits = [], []
+    page = Page("unused", LENDING.encode(), datetime.now(timezone.utc))
+
+    def flaky(report_id, start, end):
+        attempts.append(report_id)
+        if len(attempts) == 1:
+            raise SourceUnavailable("timed out")
+        return page
+
+    monkeypatch.setattr(data_library, "_search", flaky)
+    monkeypatch.setattr(data_library.time, "sleep", waits.append)
+    assert data_library.search(6277, date(2026, 8, 1), date(2026, 10, 9)) is page
+    assert len(attempts) == 2 and waits == [data_library.RETRY_AFTER_SECONDS]
+
+
+def test_after_two_failures_the_message_says_what_to_do(monkeypatch):
+    def down(report_id, start, end):
+        raise SourceUnavailable("timed out")
+
+    monkeypatch.setattr(data_library, "_search", down)
+    monkeypatch.setattr(data_library.time, "sleep", lambda seconds: None)
+    with pytest.raises(SourceUnavailable, match="shorter date range") as caught:
+        data_library.search(6169, date(2026, 8, 1), date(2026, 10, 9))
+    assert "ReportId=6169" in str(caught.value)  # the link to open it by hand
+
+
+def test_a_changed_page_is_not_retried(monkeypatch):
+    attempts = []
+
+    def changed(report_id, start, end):
+        attempts.append(report_id)
+        raise PageChanged("layout changed")
+
+    monkeypatch.setattr(data_library, "_search", changed)
+    with pytest.raises(PageChanged):
+        data_library.search(6277, date(2026, 8, 1), date(2026, 10, 9))
+    assert len(attempts) == 1  # trying again would not help
+
+
 # --- The tool -------------------------------------------------------------
 
 
@@ -140,10 +180,51 @@ def test_treasury_bills_flagged_when_the_library_is_behind(fake_library):
     assert "running behind" in result["note"]
 
 
-def test_default_range_is_the_last_year(fake_library):
+def test_default_range_is_shorter_for_the_slow_reports(fake_library):
     _, searches = fake_library
-    interest_rates.get_interest_rates()
-    assert searches == [(6277, date(2025, 10, 9), date(2026, 10, 9))]
+    interest_rates.get_interest_rates()  # lending is fast: a year
+    interest_rates.get_interest_rates("treasury_bills")  # slow: 6 months
+    interest_rates.get_interest_rates("policy")  # slow: 6 months
+    assert searches == [
+        (6277, date(2025, 10, 9), date(2026, 10, 9)),
+        (6169, date(2026, 4, 9), date(2026, 10, 9)),
+        (1059, date(2026, 4, 9), date(2026, 10, 9)),
+    ]
+
+
+def test_empty_default_range_looks_back_a_year(fake_library, monkeypatch):
+    # CBSL's Treasury data has been seen three months behind (stuck on 9 July
+    # in October 2026). If it falls further behind than the default range,
+    # the default search finds nothing.
+    pages, searches = fake_library
+    monkeypatch.setattr(interest_rates, "today_in_sri_lanka", lambda: date(2027, 2, 1))
+    real_search = data_library.search
+
+    def behind(report_id, start, end):
+        page = real_search(report_id, start, end)
+        if start > date(2026, 7, 9):
+            return Page("unused", LENDING_EMPTY.replace(LENDING_TITLE, TREASURY_TITLE).encode(), page.fetched_at)
+        return page
+
+    monkeypatch.setattr(data_library, "search", behind)
+    result = interest_rates.get_interest_rates("treasury_bills")
+    assert result["requested_start"] == "2026-02-01"
+    assert result["latest_data_date"] == "2026-07-09"
+    assert "running behind" in result["note"]
+    assert [start for _, start, _ in searches] == [date(2026, 8, 2), date(2026, 2, 1)]
+
+
+def test_empty_range_you_chose_is_not_silently_widened(fake_library):
+    pages, _ = fake_library
+    pages[6169] = LENDING_EMPTY.replace(LENDING_TITLE, TREASURY_TITLE)
+    with pytest.raises(NoData, match="earlier start date"):
+        interest_rates.get_interest_rates("treasury_bills", "2026-08-01")
+
+
+def test_a_longer_range_can_still_be_asked_for(fake_library):
+    _, searches = fake_library
+    interest_rates.get_interest_rates("treasury_bills", "2025-10-09")
+    assert searches == [(6169, date(2025, 10, 9), date(2026, 10, 9))]
 
 
 def test_long_series_are_listed_as_month_ends():

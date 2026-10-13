@@ -6,9 +6,12 @@ website. This script can. GitHub runs it every weekday (see
 
     python checks/live_check.py
 
-It fails if a page has changed shape or a number is implausible. If CBSL
-simply cannot be reached it only warns, because that is CBSL's problem, not
-a sign that this project needs fixing.
+It fails if a page has changed shape or a number is implausible. If one or
+two tools cannot reach CBSL it only warns, because CBSL's slow pages time
+out now and then. If more than that are unreachable it fails, because a
+check that could not check anything must not look like a pass. (CBSL's site
+sometimes refuses GitHub's servers with "HTTP 403" while working normally
+for everyone else.)
 """
 
 import sys
@@ -43,7 +46,9 @@ def check_exchange_rate():
     result = exchange_rates.get_exchange_rate("USD")
     assert 100 < result["indicative_rate"] < 1000, result
     assert age_in_days(result["data_date"]) <= 10, result["data_date"]
-    assert result["bank_tt_rates"]["buy"] < result["bank_tt_rates"]["sell"], result
+    bank = result["bank_tt_rates"]
+    if isinstance(bank, dict):  # otherwise a note that today's are not out yet
+        assert bank["buy"] < bank["sell"], result
     return f"USD/LKR {result['indicative_rate']} on {result['data_date']}"
 
 
@@ -96,19 +101,31 @@ CHECKS = [
 ]
 
 
+MAX_UNREACHABLE = 2
+
+
 def main() -> int:
-    failures = 0
+    failures = unreachable = 0
     for check in CHECKS:
         name = check.__name__.removeprefix("check_")
         try:
             print(f"ok       {name}: {check()}")
         except SourceUnavailable as problem:
+            unreachable += 1
             # "::warning::" makes GitHub show this on the run's summary page.
             print(f"::warning::{name}: CBSL could not be reached. {problem}")
         except (ExpectedProblem, AssertionError, KeyError) as problem:
             failures += 1
             print(f"::error::{name}: {type(problem).__name__}: {problem}")
-    print(f"\n{len(CHECKS) - failures} of {len(CHECKS)} checks passed.")
+    passed = len(CHECKS) - failures - unreachable
+    print(f"\n{passed} passed, {failures} failed, {unreachable} could not reach CBSL.")
+    if unreachable > MAX_UNREACHABLE:
+        print(
+            f"::error::{unreachable} of {len(CHECKS)} checks could not reach CBSL from "
+            "this computer, so this run proves nothing either way. If the tools work "
+            "from a normal connection, CBSL is refusing this server, not the project."
+        )
+        return 1
     return 1 if failures else 0
 
 
