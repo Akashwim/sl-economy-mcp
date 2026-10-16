@@ -45,7 +45,10 @@ PAGE_TITLE = "Daily Report"
 LINK_TEXT = "Daily Summary Report"
 SHEET = "Summary Statistics"
 
-TIMEOUT_SECONDS = 60  # the file is about 600 KB and has taken 3 to 12 seconds
+# Answers normally take 1 to 12 seconds. On 16 Oct 2026 a page hung for 71 seconds
+# and then answered in 4 on the retry, so give up early and let the retry run
+# within the Morning Sheet's 45-second limit.
+TIMEOUT_SECONDS = 20
 RETRY_AFTER_SECONDS = 5  # the site has answered "HTTP 502" and then worked on the next try
 PAGE_CACHE_SECONDS = 5 * 60
 FILE_CACHE_SECONDS = 60 * 60  # a new or amended report gets a new address, so a file never changes

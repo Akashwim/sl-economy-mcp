@@ -1,6 +1,6 @@
-# Calls every tool against the real CBSL website each weekday, so that a
-# change to CBSL's pages is noticed the same day. GitHub emails the repository
-# owner when it fails. It can also be started by hand from the Actions tab.
+# Calls every tool against the real CBSL and Ministry of Finance websites each
+# weekday, so that a change to their pages is noticed the same day. GitHub
+# emails the repository owner when it fails. It can also be started by hand from the Actions tab.
 name: live check
 
 on:

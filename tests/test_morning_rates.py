@@ -369,3 +369,24 @@ def test_a_vertical_bar_in_a_label_cannot_break_the_table(sources):
              "figures": [{"label": "x | y", "shown": "1.00%", "for": "today"}]}]
     table = morning_rates.render(rows, date(2026, 10, 9), "09:00")
     assert "| **Lending rate** | x \\| y | 1.00% | today | [CBSL: A \\| B](https://example.test) |" in table
+
+
+def test_the_sheet_as_a_csv_file(sources):
+    import csv
+
+    rows = list(csv.reader(morning_rates.csv_text(morning_rates.get_morning_rates()).splitlines()))
+    assert rows[0][0].startswith("Morning Sheet: 2026-10-09")
+    assert rows[1] == morning_rates.CSV_COLUMNS
+    assert rows[2][:4] == ["Inflation", f"{NCPI}: Headline Inflation (Y-o-Y)", "8.10%", "Aug 2026"]
+    bill = next(row for row in rows if row[1:2] == ["91 days"])
+    assert bill[2:4] == ["9.30%", "auction of 14 Oct 2026"]  # as displayed, so Excel keeps 9.30, not 9.3
+    assert bill[6].startswith("Checked:")
+    assert ["Treasury bonds", BONDS, "", "", "", "", ""] in rows
+    assert rows[-1] == [morning_rates.DISCLAIMER]
+
+
+def test_save_csv_writes_a_dated_file(sources, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    morning_rates.save_csv()
+    text = (tmp_path / "morning-sheet-2026-10-09.csv").read_text(encoding="utf-8-sig")
+    assert "9.30%" in text

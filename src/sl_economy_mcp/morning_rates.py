@@ -22,6 +22,9 @@ go on to be used at work:
   figures. The other sections are unaffected.
 """
 
+import csv
+import io
+import sys
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, wait
 from dataclasses import dataclass
@@ -429,3 +432,41 @@ def get_morning_rates() -> dict:
         "not_shown": NOT_SHOWN,
         "disclaimer": DISCLAIMER,
     }
+
+
+# --- The sheet as a file, without an assistant ---------------------------------
+
+CSV_COLUMNS = ["Section", "Item", "Figure", "For", "Source", "Link", "Note"]
+
+
+def csv_text(sheet: dict) -> str:
+    """The sheet as CSV, one row per figure, each figure written exactly as the table shows it."""
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow([f"Morning Sheet: {sheet['date']}, prepared at {sheet['prepared_at_sri_lanka']} Sri Lanka time"])
+    writer.writerow(CSV_COLUMNS)
+    for section in sheet["sections"]:
+        source = f"{SHORT_NAMES[section['publisher']]}: {section['title']}"
+        if "not_available" in section:
+            writer.writerow([section["group"], "Not available", "", "", source, section["source_url"], section["not_available"]])
+            continue
+        notes = [section.get("note"), section.get("cross_check")]
+        for figure in section["figures"]:
+            note = " ".join(text for text in notes + [figure.get("not_shown_because")] if text)
+            writer.writerow([section["group"], figure["label"], figure["shown"], figure["for"], source, section["source_url"], note])
+    for item in NOT_SHOWN:
+        writer.writerow([item["item"].split(" (")[0], item["in_short"], "", "", "", "", ""])
+    writer.writerow([])
+    writer.writerow([DISCLAIMER])
+    return out.getvalue()
+
+
+def save_csv() -> None:
+    """The `sl-economy-sheet` command: save today's sheet as morning-sheet-<date>.csv."""
+    sheet = get_morning_rates()
+    path = f"morning-sheet-{sheet['date']}.csv"
+    # utf-8-sig lets Excel read the dashes and other characters correctly.
+    with open(path, "w", newline="", encoding="utf-8-sig") as file:
+        file.write(csv_text(sheet))
+    unavailable = [s["group"] for s in sheet["sections"] if "not_available" in s]
+    print(f"Saved {path}" + (f" (not available: {', '.join(unavailable)})" if unavailable else ""), file=sys.stderr)

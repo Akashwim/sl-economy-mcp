@@ -29,6 +29,7 @@ Changelog = "https://github.com/Akashwim/sl-economy-mcp/blob/main/CHANGELOG.md"
 
 [project.scripts]
 sl-economy-mcp = "sl_economy_mcp.server:main"
+sl-economy-sheet = "sl_economy_mcp.morning_rates:save_csv"
 
 [build-system]
 requires = ["hatchling"]

@@ -1,4 +1,4 @@
-"""Unofficial MCP server for Sri Lankan economic data published by CBSL."""
+"""Unofficial MCP server for Sri Lankan economic data from CBSL and the Ministry of Finance."""
 
 __version__ = "0.1.0"
 

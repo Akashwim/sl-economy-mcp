@@ -12,6 +12,8 @@
 - Every tool now has a title and a description for each argument; `interval` and `series` list their allowed values. The server gives its version and short instructions to the assistant.
 - Hardening from a full audit: figures must be plain numbers ("nan" or "1e5" are refused); downloads over 20 MB are refused; Excel-reader warnings go to the error log, never the channel the server talks to Claude on; the Ministry's file links are recognised however they are typed, and a newest line that cannot be followed is reported, never silently skipped; a bill auction result with two rows for one bill, or headings but no readable rows, is refused; table cells are escaped.
 - GitHub workflows use actions/checkout v5 and actions/setup-python v6 (Node.js 24).
+- New command `sl-economy-sheet` saves the Morning Sheet as `morning-sheet-<date>.csv`, figures written exactly as displayed, with no AI involved.
+- The Ministry of Finance's site gets 20 seconds per attempt instead of 60, so a hung page fails fast and the retry still fits within the sheet's 45-second limit (a page hung for 71 seconds on 16 October 2026).
 
 ## 0.1.0 - 2026-10-13
 
