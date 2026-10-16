@@ -1,12 +1,12 @@
 [project]
 name = "sl-economy-mcp"
 version = "0.1.0"
-description = "Unofficial MCP server for live Sri Lankan economic data from the Central Bank of Sri Lanka (CBSL)."
+description = "Unofficial MCP server for live, official Sri Lankan economic data from the Central Bank of Sri Lanka and the Ministry of Finance."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "Akash Wimalananda" }]
-keywords = ["mcp", "sri-lanka", "economics", "central-bank", "cbsl", "exchange-rates", "inflation"]
+keywords = ["mcp", "sri-lanka", "economics", "central-bank", "cbsl", "exchange-rates", "inflation", "treasury-bills"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Financial and Insurance Industry",
