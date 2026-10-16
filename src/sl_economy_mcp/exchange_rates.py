@@ -21,6 +21,7 @@ from .dates import parse_day, today_in_sri_lanka
 from .errors import InvalidRequest, NoData, PageChanged
 from .fetch import Page, fetch
 from .series import Series, describe, month_ends
+from .tables import number
 
 CBSL = "https://www.cbsl.gov.lk"
 
@@ -98,7 +99,10 @@ def parse_rate_table(results_html: str, heading: str) -> list[Row]:
 
 
 def _number(text: str) -> float:
-    return float(text.replace(",", ""))
+    value = number(text)
+    if value is None:
+        raise ValueError("no figure")
+    return value
 
 
 def currencies(form: LookupForm) -> dict[str, str]:

@@ -9,6 +9,7 @@ from sl_economy_mcp import fetch as fetch_module
 from sl_economy_mcp.errors import SourceUnavailable
 from sl_economy_mcp.fetch import cached, fetch
 from sl_economy_mcp.series import fisher_real_rate
+from sl_economy_mcp.tables import number
 
 
 @pytest.fixture
@@ -84,3 +85,30 @@ def test_fisher_real_rate_matters_most_when_inflation_is_high():
     assert fisher_real_rate(11.04, 8.0) == 2.81  # simple subtraction gives 3.04
     assert fisher_real_rate(28.0, 60.0) == -20.0  # simple subtraction gives -32
     assert fisher_real_rate(5.0, 0.0) == 5.0
+
+
+def test_an_oversized_download_is_refused(fake_internet, monkeypatch):
+    monkeypatch.setattr(fetch_module, "MAX_BYTES", 3)  # the fake page says "hello", 5 bytes
+    with pytest.raises(SourceUnavailable, match="far more than this page should be"):
+        fetch("https://example.test/page")
+
+
+def test_errors_name_the_site_that_failed(monkeypatch):
+    def broken_urlopen(request, timeout):
+        raise urllib.error.HTTPError(request.full_url, 502, "Bad Gateway", {}, None)
+
+    monkeypatch.setattr(fetch_module.urllib.request, "urlopen", broken_urlopen)
+    with pytest.raises(SourceUnavailable, match=r"^The Treasury returned an error \(HTTP 502\)"):
+        fetch_module.download("https://example.test/file", site="The Treasury")
+
+
+@pytest.mark.parametrize("cell", ["nan", "inf", "1e5", "11..04", "8.", "n/a", "12%"])
+def test_only_plain_numbers_are_read_as_numbers(cell):
+    with pytest.raises(ValueError):
+        number(cell)
+
+
+def test_plain_numbers_blanks_and_dashes():
+    assert [number(cell) for cell in ["11.04", "-0.30", "2,100.00", "7", "", "-"]] == [
+        11.04, -0.3, 2100.0, 7.0, None, None,
+    ]  # fmt: skip

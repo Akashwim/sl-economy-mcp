@@ -1,8 +1,9 @@
-"""Downloading pages from CBSL: one place for the cache, User-Agent and errors.
+"""Downloading pages and files: one place for the cache, User-Agent and errors.
 
 Every tool goes through here so that they all behave the same way:
 - we identify ourselves honestly with a User-Agent,
-- we keep each page for a few minutes so repeated questions don't hammer CBSL,
+- we keep each page for a few minutes so repeated questions don't hammer the
+  website they came from,
 - network problems become one clear, readable error.
 """
 
@@ -20,6 +21,7 @@ from .errors import SourceUnavailable
 USER_AGENT = f"sl-economy-mcp/{__version__} (unofficial open-source MCP server)"
 TIMEOUT_SECONDS = 20
 CACHE_SECONDS = 5 * 60
+MAX_BYTES = 20_000_000  # the largest real download is about 0.6 MB; anything far bigger is wrong
 
 
 @dataclass(frozen=True)
@@ -57,27 +59,35 @@ def download(
     form: dict | None = None,
     session: urllib.request.OpenerDirector | None = None,
     timeout: int = TIMEOUT_SECONDS,
+    site: str = "CBSL",
 ) -> Page:
     """Get a page from the internet right now, with no cache.
 
     Pass `form` to submit a search form (an HTTP POST) instead of simply
     opening the page, and `session` when the site needs its cookies back.
+    `site` is the website's name, used in the error messages.
     """
     data = urllib.parse.urlencode(form).encode() if form else None
     request = urllib.request.Request(url, data=data, headers={"User-Agent": USER_AGENT})
     open_url = session.open if session else urllib.request.urlopen
     try:
         with open_url(request, timeout=timeout) as response:
-            return Page(response.geturl(), response.read(), datetime.now(timezone.utc))
+            body = response.read(MAX_BYTES + 1)
+            if len(body) > MAX_BYTES:
+                raise SourceUnavailable(
+                    f"{site} sent more than {MAX_BYTES // 1_000_000} MB for {url}, far more "
+                    "than this page should be, so it was not read."
+                )
+            return Page(response.geturl(), body, datetime.now(timezone.utc))
     except urllib.error.HTTPError as error:
         raise SourceUnavailable(
-            f"CBSL returned an error (HTTP {error.code}) for {url}. "
+            f"{site} returned an error (HTTP {error.code}) for {url}. "
             "The site may be down or the page may have moved."
         ) from error
     except OSError as error:  # no connection, timed out, connection dropped
         raise SourceUnavailable(
-            f"Could not reach CBSL at {url}. Check the internet connection, "
-            "or CBSL's website may be down or slow. Try again in a few minutes."
+            f"Could not reach {site} at {url}. Check the internet connection, "
+            "or the website may be down or slow. Try again in a few minutes."
         ) from error
 
 

@@ -1,23 +1,31 @@
-"""Call every tool against the real CBSL website and check the answers look sane.
+"""Call every tool against the real websites and check the answers look sane.
 
-The normal tests use saved pages, so they cannot notice CBSL changing its
-website. This script can. GitHub runs it every weekday (see
-.github/workflows/live-check.yml); you can also run it yourself:
+The normal tests use saved pages, so they cannot notice CBSL or the Ministry
+of Finance changing its website. This script can. GitHub runs it every
+weekday (see .github/workflows/live-check.yml); you can also run it yourself:
 
     python checks/live_check.py
 
 It fails if a page has changed shape or a number is implausible. If one or
-two tools cannot reach CBSL it only warns, because CBSL's slow pages time
-out now and then. If more than that are unreachable it fails, because a
-check that could not check anything must not look like a pass. (CBSL's site
-sometimes refuses GitHub's servers with "HTTP 403" while working normally
-for everyone else.)
+two tools cannot reach their website it only warns, because CBSL's slow
+pages time out now and then. If more than that are unreachable it fails,
+because a check that could not check anything must not look like a pass.
+(CBSL's site sometimes refuses GitHub's servers with "HTTP 403" while working
+normally for everyone else.)
 """
 
 import sys
 from datetime import date, timedelta
 
-from sl_economy_mcp import exchange_rates, inflation, interest_rates, snapshot
+from sl_economy_mcp import (
+    bill_auctions,
+    exchange_rates,
+    inflation,
+    interest_rates,
+    morning_rates,
+    snapshot,
+    treasury_yields,
+)
 from sl_economy_mcp.dates import today_in_sri_lanka
 from sl_economy_mcp.errors import ExpectedProblem, SourceUnavailable
 
@@ -74,14 +82,6 @@ def check_lending_rates():
     return f"prime lending rate {prime['value']}% on {prime['date']}"
 
 
-def check_treasury_bills():
-    # CBSL's Data Library often runs months behind here, so only the shape is checked.
-    result = interest_rates.get_interest_rates("treasury_bills", days_ago(365))
-    one_year = result["rates"]["364_day"]["summary"]["last"]
-    assert 0 < one_year["value"] < 50, one_year
-    return f"364-day yield {one_year['value']}% on {one_year['date']}"
-
-
 def check_policy_rates():
     result = interest_rates.get_interest_rates("policy", days_ago(30))
     floor = result["rates"]["standing_deposit_facility_rate"]["summary"]["last"]["value"]
@@ -90,14 +90,36 @@ def check_policy_rates():
     return f"policy corridor {floor}% to {ceiling}%"
 
 
+def check_bill_auctions():
+    result, _, _, previous = bill_auctions.latest_result()
+    assert age_in_days(result.held_on.isoformat()) <= 10, result.held_on
+    assert set(result.rows) == set(bill_auctions.TENORS), result.rows
+    # The auction result and the Ministry's daily report must agree.
+    listed_on, summary, _ = treasury_yields.latest_summary()
+    problems, said = bill_auctions.cross_check(result, previous, summary, f"the daily report of {listed_on}")
+    assert not problems and said.startswith("Checked"), (problems, said)
+    rates = ", ".join(f"{days} days {row[1]}%" for days, row in sorted(result.rows.items()))
+    return f"auction of {result.held_on}: {rates}, agreeing with the daily report"
+
+
+def check_morning_rates():
+    # Each section is read directly, so that a site that cannot be reached (a
+    # warning) is told apart from a heading that has changed (a failure).
+    for section in morning_rates.SECTIONS:
+        answer = section.read()
+        assert answer["figures"], section.title
+    return f"{len(morning_rates.SECTIONS)} sections, each with its headings as expected"
+
+
 CHECKS = [
     check_snapshot,
     check_exchange_rate,
     check_exchange_rate_history,
     check_inflation,
     check_lending_rates,
-    check_treasury_bills,
     check_policy_rates,
+    check_bill_auctions,
+    check_morning_rates,
 ]
 
 
@@ -113,17 +135,17 @@ def main() -> int:
         except SourceUnavailable as problem:
             unreachable += 1
             # "::warning::" makes GitHub show this on the run's summary page.
-            print(f"::warning::{name}: CBSL could not be reached. {problem}")
+            print(f"::warning::{name}: the website could not be reached. {problem}")
         except (ExpectedProblem, AssertionError, KeyError) as problem:
             failures += 1
             print(f"::error::{name}: {type(problem).__name__}: {problem}")
     passed = len(CHECKS) - failures - unreachable
-    print(f"\n{passed} passed, {failures} failed, {unreachable} could not reach CBSL.")
+    print(f"\n{passed} passed, {failures} failed, {unreachable} could not reach their website.")
     if unreachable > MAX_UNREACHABLE:
         print(
-            f"::error::{unreachable} of {len(CHECKS)} checks could not reach CBSL from "
-            "this computer, so this run proves nothing either way. If the tools work "
-            "from a normal connection, CBSL is refusing this server, not the project."
+            f"::error::{unreachable} of {len(CHECKS)} checks could not reach their website "
+            "from this computer, so this run proves nothing either way. If the tools "
+            "work from a normal connection, the site is refusing this server, not the project."
         )
         return 1
     return 1 if failures else 0

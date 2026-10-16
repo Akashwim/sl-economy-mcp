@@ -12,12 +12,12 @@ from sl_economy_mcp.fetch import Page
 FIXTURES = Path(__file__).parent / "fixtures"
 LENDING = (FIXTURES / "library_lending_2026-08-01_to_10-09.html").read_text()
 LENDING_EMPTY = (FIXTURES / "library_lending_empty.html").read_text()
-TREASURY = (FIXTURES / "library_treasury_2026-06-01_to_07-31.html").read_text()
 POLICY = (FIXTURES / "library_policy_2026-05-18_to_29.html").read_text()
 INFLATION = (FIXTURES / "inflation_table_2026-10-09.html").read_text()
 
 LENDING_TITLE = interest_rates.REPORTS["lending"].title
-TREASURY_TITLE = interest_rates.REPORTS["treasury_bills"].title
+POLICY_TITLE = interest_rates.REPORTS["policy"].title
+POLICY_EMPTY = LENDING_EMPTY.replace(LENDING_TITLE, POLICY_TITLE)
 
 
 # --- Reading the Data Library's pages -------------------------------------
@@ -40,13 +40,6 @@ def test_reads_lending_rows_oldest_first_with_blanks():
     assert figures[0] is None  # monthly average lending rate, not out yet
 
 
-def test_reads_treasury_bill_yields():
-    rows = data_library.parse_grid(TREASURY, TREASURY_TITLE, 16)
-    day, figures = rows[-1]
-    assert day == date(2026, 7, 9)
-    assert figures[:3] == [10.21, 10.30, 10.21]
-
-
 def test_no_records_is_an_empty_list():
     assert data_library.parse_grid(LENDING_EMPTY, LENDING_TITLE, 8) == []
 
@@ -55,7 +48,7 @@ def test_clear_error_when_a_different_page_comes_back():
     with pytest.raises(PageChanged, match="did not return"):
         data_library.parse_grid("<html><body>Please log in</body></html>", LENDING_TITLE, 8)
     with pytest.raises(PageChanged, match="did not return"):
-        data_library.parse_grid(TREASURY, LENDING_TITLE, 8)  # the wrong report
+        data_library.parse_grid(POLICY, LENDING_TITLE, 8)  # the wrong report
 
 
 def test_clear_error_when_cbsl_adds_or_removes_a_column():
@@ -139,7 +132,7 @@ def test_a_changed_page_is_not_retried(monkeypatch):
 @pytest.fixture
 def fake_library(monkeypatch):
     """Make the Data Library return saved pages. `today` is fixed for the 'behind' check."""
-    pages = {6277: LENDING, 6169: TREASURY, 1059: POLICY}
+    pages = {6277: LENDING, 1059: POLICY}
     table = inflation.parse_inflation_table(INFLATION)
     monkeypatch.setattr(inflation, "load_table", lambda: table)
     searches = []
@@ -173,58 +166,55 @@ def test_monthly_columns_keep_their_own_dates(fake_library):
     assert 0 < len(monthly) < len(weekly)
 
 
-def test_treasury_bills_flagged_when_the_library_is_behind(fake_library):
-    result = interest_rates.get_interest_rates("treasury_bills", "2026-06-01", "2026-10-09")
-    assert result["rates"]["364_day"]["summary"]["last"] == {"date": "2026-07-09", "value": 10.21}
-    assert result["latest_data_date"] == "2026-07-09"
+def test_flagged_when_the_library_is_behind(fake_library, monkeypatch):
+    monkeypatch.setattr(interest_rates, "today_in_sri_lanka", lambda: date(2026, 11, 30))
+    result = interest_rates.get_interest_rates("lending", "2026-08-01", "2026-11-30")
+    assert result["latest_data_date"] == "2026-10-02"
     assert "running behind" in result["note"]
 
 
-def test_default_range_is_shorter_for_the_slow_reports(fake_library):
+def test_default_range_is_shorter_for_the_slow_report(fake_library):
     _, searches = fake_library
     interest_rates.get_interest_rates()  # lending is fast: a year
-    interest_rates.get_interest_rates("treasury_bills")  # slow: 6 months
     interest_rates.get_interest_rates("policy")  # slow: 6 months
     assert searches == [
         (6277, date(2025, 10, 9), date(2026, 10, 9)),
-        (6169, date(2026, 4, 9), date(2026, 10, 9)),
         (1059, date(2026, 4, 9), date(2026, 10, 9)),
     ]
 
 
 def test_empty_default_range_looks_back_a_year(fake_library, monkeypatch):
-    # CBSL's Treasury data has been seen three months behind (stuck on 9 July
-    # in October 2026). If it falls further behind than the default range,
-    # the default search finds nothing.
+    # If CBSL's library falls further behind than the 6-month default range,
+    # the default search finds nothing and a year is tried instead.
     pages, searches = fake_library
     monkeypatch.setattr(interest_rates, "today_in_sri_lanka", lambda: date(2027, 2, 1))
     real_search = data_library.search
 
     def behind(report_id, start, end):
         page = real_search(report_id, start, end)
-        if start > date(2026, 7, 9):
-            return Page("unused", LENDING_EMPTY.replace(LENDING_TITLE, TREASURY_TITLE).encode(), page.fetched_at)
+        if start > date(2026, 5, 29):
+            return Page("unused", POLICY_EMPTY.encode(), page.fetched_at)
         return page
 
     monkeypatch.setattr(data_library, "search", behind)
-    result = interest_rates.get_interest_rates("treasury_bills")
+    result = interest_rates.get_interest_rates("policy")
     assert result["requested_start"] == "2026-02-01"
-    assert result["latest_data_date"] == "2026-07-09"
+    assert result["latest_data_date"] == "2026-05-29"
     assert "running behind" in result["note"]
     assert [start for _, start, _ in searches] == [date(2026, 8, 2), date(2026, 2, 1)]
 
 
 def test_empty_range_you_chose_is_not_silently_widened(fake_library):
     pages, _ = fake_library
-    pages[6169] = LENDING_EMPTY.replace(LENDING_TITLE, TREASURY_TITLE)
+    pages[1059] = POLICY_EMPTY
     with pytest.raises(NoData, match="earlier start date"):
-        interest_rates.get_interest_rates("treasury_bills", "2026-08-01")
+        interest_rates.get_interest_rates("policy", "2026-08-01")
 
 
 def test_a_longer_range_can_still_be_asked_for(fake_library):
     _, searches = fake_library
-    interest_rates.get_interest_rates("treasury_bills", "2025-10-09")
-    assert searches == [(6169, date(2025, 10, 9), date(2026, 10, 9))]
+    interest_rates.get_interest_rates("policy", "2025-10-09")
+    assert searches == [(1059, date(2025, 10, 9), date(2026, 10, 9))]
 
 
 def test_long_series_are_listed_as_month_ends():
@@ -236,8 +226,14 @@ def test_long_series_are_listed_as_month_ends():
 
 
 def test_unknown_series_lists_the_choices(fake_library):
-    with pytest.raises(InvalidRequest, match="policy, lending, treasury_bills, treasury_bonds"):
+    with pytest.raises(InvalidRequest, match="Choose from: policy, lending"):
         interest_rates.get_interest_rates("mortgages")
+
+
+def test_the_removed_treasury_series_point_to_the_morning_sheet(fake_library):
+    for series in ("treasury_bills", "treasury_bonds"):
+        with pytest.raises(InvalidRequest, match="use get_morning_rates"):
+            interest_rates.get_interest_rates(series)
 
 
 def test_no_data_is_explained(fake_library):
@@ -269,16 +265,9 @@ def test_policy_range_is_capped_because_the_source_is_slow(fake_library):
         interest_rates.get_interest_rates("policy", "2024-01-01", "2026-10-09")
 
 
-def test_bond_yields_only_where_cbsl_held_an_auction(fake_library):
-    result = interest_rates.get_interest_rates("treasury_bonds", "2026-06-01", "2026-07-31")
-    assert result["rates"]["4_year"]["values"]["2026-07-02"] == 11.44
-    assert result["rates"]["8_year"]["values"]["2026-07-02"] == 11.88
-    assert "30_year" not in result["rates"]  # not auctioned in this period
-
-
-def test_real_rate_uses_inflation_for_the_same_month(fake_library):
-    result = interest_rates.get_interest_rates("treasury_bills", "2026-06-01", "2026-10-09")
-    assert result["rates"]["364_day"]["real_rate_latest"] == {
+def test_real_rate_uses_inflation_for_the_same_month():
+    table = inflation.parse_inflation_table(INFLATION)
+    assert interest_rates.real_rate((date(2026, 7, 9), 10.21), table) == {
         "value": 2.91,  # 10.21 yield - 7.30 inflation
         "fisher_value": 2.71,  # 1.1021 / 1.073 - 1
         "rate": 10.21,

@@ -14,12 +14,12 @@ class InvalidRequest(ExpectedProblem):
 
 
 class SourceUnavailable(ExpectedProblem):
-    """CBSL's website could not be reached or returned an error."""
+    """The source's website could not be reached or returned an error."""
 
 
 class PageChanged(ExpectedProblem):
-    """The page loaded, but no longer looks the way this code expects."""
+    """The page or file loaded, but no longer looks the way this code expects."""
 
 
 class NoData(ExpectedProblem):
-    """CBSL answered properly but has nothing for the dates asked for."""
+    """The source answered properly but has nothing for the dates asked for."""

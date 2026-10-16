@@ -80,6 +80,17 @@ def hidden_fields(html: str) -> dict[str, str]:
     return fields
 
 
+def heading_rows(html: str) -> list[list[str]]:
+    """The rows above the figures in a results table: its title, then its column headings."""
+    start = html.find('id="statTB"')
+    grid = html[start : html.find("</table>", start)] if start != -1 else ""
+    return [
+        cells
+        for cells in rows_of_cells(grid)
+        if cells and not re.fullmatch(r"\d{4}-\d\d-\d\d", cells[0])
+    ]
+
+
 def parse_grid(
     html: str, title: str, value_columns: int, wanted: set[int] | None = None
 ) -> list[Row]:

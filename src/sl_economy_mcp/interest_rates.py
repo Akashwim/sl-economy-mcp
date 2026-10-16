@@ -1,11 +1,15 @@
 """Interest rates over time, from CBSL's Data Library.
 
-Four groups are available:
+Two groups are available:
 
 - "policy": the rates CBSL itself sets, and the dates it changed them.
 - "lending": what commercial banks charge borrowers and pay depositors.
-- "treasury_bills": the yield on short-term government borrowing.
-- "treasury_bonds": the yield on longer-term government borrowing.
+
+Treasury bill and bond yields used to be here too. Sri Lanka's debt data
+moved to the Ministry of Finance's Public Debt Management Office, and CBSL's
+Data Library has had no Treasury figures since 9 July 2026, so they were
+removed rather than shown out of date. The latest bill auction rates are on
+the morning sheet (morning_rates.py).
 
 Each group is one table in the Data Library. A `Report` below says which
 table it is and which of its columns we pick out.
@@ -32,8 +36,6 @@ class Report:
     real_rates: bool = False  # also give the latest rate after inflation
     default_days: int = 365  # range used when no start date is given; shorter for slow reports
 
-
-BOND_YEARS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 30]  # in CBSL's column order
 
 REPORTS = {
     "policy": Report(
@@ -93,41 +95,9 @@ REPORTS = {
         },
         real_rates=True,
     ),
-    "treasury_bills": Report(
-        report_id=6169,
-        title="Rates on Government Securities",
-        value_columns=16,
-        description=(
-            "Weekly yields on Sri Lankan government Treasury bills. They are "
-            "the benchmark for other rupee interest rates and are often used "
-            "as the rupee risk-free rate."
-        ),
-        columns={
-            "91_day": (0, "Yield on 91-day (3-month) Treasury bills."),
-            "182_day": (1, "Yield on 182-day (6-month) Treasury bills."),
-            "364_day": (2, "Yield on 364-day (1-year) Treasury bills."),
-        },
-        real_rates=True,
-        default_days=183,
-    ),
-    "treasury_bonds": Report(
-        report_id=6169,
-        title="Rates on Government Securities",
-        value_columns=16,
-        description=(
-            "Yields on longer-term Sri Lankan government Treasury bonds. A "
-            "maturity only has a figure in weeks when CBSL auctioned it, so "
-            "expect few values and uneven dates."
-        ),
-        columns={
-            f"{years}_year": (3 + position, f"Yield on {years}-year Treasury bonds.")
-            for position, years in enumerate(BOND_YEARS)
-        },
-        default_days=183,
-    ),
 }
 
-FALLBACK_RANGE_DAYS = 365  # tried when a shorter default range comes back empty
+FALLBACK_RANGE_DAYS = 365  # tried when the shorter policy range comes back empty
 MONTHLY_ABOVE = 120  # longer series are listed as month-ends instead
 BEHIND_AFTER_DAYS = 21  # weekly data this old means CBSL's library is running behind
 
@@ -189,6 +159,12 @@ def get_interest_rates(
     series: str = "lending", start_date: str | None = None, end_date: str | None = None
 ) -> dict:
     name = series.strip().lower()
+    if name in ("treasury_bills", "treasury_bonds"):
+        raise InvalidRequest(
+            "Treasury yields are no longer offered here: CBSL's Data Library has had no "
+            "Treasury figures since 9 July 2026. For the latest Treasury bill auction "
+            "rates use get_morning_rates."
+        )
     if name not in REPORTS:
         raise InvalidRequest(
             f"'{series}' is not an available series. Choose from: {', '.join(REPORTS)}. "
