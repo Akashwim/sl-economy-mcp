@@ -22,6 +22,10 @@ Every call fetches fresh data from the source, and every answer says where each 
 | Treasury bonds | Not shown yet: to be developed with a primary dealer | |
 | FD ceiling rate | Not shown yet: there is no official figure to check a calculation against | |
 
+![The Morning Sheet as Claude shows it: inflation, US dollar, lending rate and Treasury bill rows, each with its figure, date and source link, and the Treasury bonds and FD ceiling rows marked as not shown yet](https://raw.githubusercontent.com/Akashwim/sl-economy-mcp/main/docs/morning-sheet-example.png)
+
+*The Morning Sheet in Claude, 16 October 2026. Every figure, label and date is the tool's own output.*
+
 How the sheet keeps its figures trustworthy:
 
 - **The source's own words.** Every label is the source's own, checked against the page each time. If a source renames or moves a column, that section is left out with the reason instead of being misread.
