@@ -23,3 +23,7 @@ class PageChanged(ExpectedProblem):
 
 class NoData(ExpectedProblem):
     """The source answered properly but has nothing for the dates asked for."""
+
+
+class Disagreement(ExpectedProblem):
+    """Two official sources that must agree do not, so neither figure is shown."""

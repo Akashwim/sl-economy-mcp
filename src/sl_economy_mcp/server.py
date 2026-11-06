@@ -66,12 +66,13 @@ def explain_problems(tool):
 @mcp.tool(title="Morning Sheet", annotations=READ_ONLY)
 @explain_problems
 def get_morning_rates() -> list:
-    """The Morning Sheet: Sri Lankan inflation, the US dollar, bank lending and deposit rates and Treasury bill auction rates, as one finished table.
+    """The Morning Sheet: Sri Lankan inflation, the US dollar, policy rates, bank lending and deposit rates and Treasury bill auction rates, as one finished table.
 
     Returns the latest figures from the Central Bank of Sri Lanka and the
     Ministry of Finance's Public Debt Management Office: NCPI headline and
     core inflation, the USD/LKR indicative rate, the banks' USD buying and
-    selling rates, the weekly prime lending rate (AWPR), the monthly average
+    selling rates, the Overnight Policy Rate and the standing facility rates
+    (shown only when they agree), the weekly prime lending rate (AWPR), the monthly average
     lending, deposit and fixed deposit rates (AWLR, AWDR, AWFDR), and the 91, 182 and
     364-day Treasury bill rates of the latest auction that the Ministry's daily
     report confirms (no bill rate is shown without that check). Every figure

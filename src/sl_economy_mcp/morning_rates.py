@@ -39,10 +39,11 @@ from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 
-from . import bill_auctions, data_library, exchange_rates, inflation, interest_rates, treasury_yields
+from . import bill_auctions, data_library, exchange_rates, inflation, interest_rates, snapshot, treasury_yields
 from .dates import SRI_LANKA_TIME, today_in_sri_lanka
-from .errors import ExpectedProblem, NoData, PageChanged
+from .errors import Disagreement, ExpectedProblem, NoData, PageChanged
 from .fetch import fetch
 from .tables import heading_cells, rows_of_cells
 
@@ -90,6 +91,7 @@ USUALLY_AT_MOST_DAYS = {
     "month": 75,  # counted from the month's last day: a month is published within about seven weeks
     "week": 21,  # counted from the week's end: AWPR for a week is out by the following Monday
     "auction": 16,  # Treasury bill auctions are weekly; a holiday week can add a few days
+    "day": 10,  # a business day's figure; a long holiday can leave a week's gap
 }
 LOOKS_AFTER = "Please tell the person who looks after this tool for your team."
 
@@ -300,6 +302,86 @@ def _month_end(day: date) -> date:
     return date(day.year, day.month, calendar.monthrange(day.year, day.month)[1])
 
 
+# --- Policy rates ------------------------------------------------------------------
+
+POLICY_TITLE = "Daily Operations"
+OPR = "Overnight Policy Rate"  # the heading on CBSL's front-page rate panel
+CBSL_FRONT_PAGE = "https://www.cbsl.gov.lk/en"  # where a person sees that panel
+POLICY_LOOK_BACK_DAYS = 14
+# CBSL: "SDFR and SLFR are linked to the OPR with a margin of ± 50 basis
+# points" (Weekly Economic Indicators, footnote, since 27 November 2024). The
+# two sources must agree on it before any of the three rates is shown.
+MARGIN = Decimal("0.50")
+
+
+def _policy_rates() -> dict:
+    window = fetch(snapshot.RATE_WINDOW_URL)
+    opr = snapshot.parse_rate_window(window.text)["overnight_policy_rate_percent"]
+
+    report = interest_rates.REPORTS["policy"]
+    deposit, lending = 8, 10  # among the table's 13 figures: the SDF and SLF rates
+    today = today_in_sri_lanka()
+    start = today - timedelta(days=POLICY_LOOK_BACK_DAYS)
+    page = data_library.search(report.report_id, start, today)
+    rows = data_library.parse_grid(page.text, report.title, report.value_columns, {deposit, lending})
+    # Three rows of headings: the groups ("Standing Facilities" over four
+    # columns), then "SDF" and "SLF" over two each, then "Volume" and "Rate (%)".
+    title, groups, kinds, units = (data_library.heading_rows(page.text) + [[], [], [], []])[:4]
+    _same(title, [POLICY_TITLE], "The title of CBSL's Daily Operations table")
+    _same((len(groups), len(kinds), len(units)), (5, 7, 11), "The number of headings in CBSL's Daily Operations table")
+    _same(
+        [groups[2], kinds[5], units[deposit], kinds[6], units[lending]],
+        ["Standing Facilities", "SDF", "Rate (%)", "SLF", "Rate (%)"],
+        "The standing facility headings in CBSL's Daily Operations table",
+    )
+    days = [(day, figures[deposit], figures[lending]) for day, figures in rows if day >= start]
+    days = [found for found in days if found[1] is not None and found[2] is not None]
+    if not days:
+        raise NoData(f"CBSL's Data Library lists no standing facility rates between {start} and {today}.")
+    day, sdf, slf = days[-1]
+    if Decimal(str(sdf)) != Decimal(str(opr)) - MARGIN or Decimal(str(slf)) != Decimal(str(opr)) + MARGIN:
+        raise Disagreement(
+            f"The policy rates are not shown, because CBSL's two sources disagree: its front page gives "
+            f"the {OPR} as {opr:.2f}%, and its Daily Operations table for {_day(day)} gives the SDF rate "
+            f"as {sdf:.2f}% and the SLF rate as {slf:.2f}%, but CBSL sets those 0.50% either side of "
+            "the OPR. This can happen on the day CBSL changes its policy rate, until its tables catch up."
+        )
+
+    read_at = window.fetched_at.astimezone(SRI_LANKA_TIME)
+    figures = [{
+        "label": OPR,
+        "value": opr,
+        "date": read_at.date().isoformat(),
+        "shown": f"{opr:.2f}%",
+        "for": f"in force at {read_at:%H:%M}, {_day(read_at.date())}",
+        "source": {"label": f"CBSL: {OPR} (front page)", "url": CBSL_FRONT_PAGE},
+    }]  # fmt: skip
+    for kind, rate, position in (("SDF", sdf, deposit), ("SLF", slf, lending)):
+        figure = {
+            "label": f"{groups[2]}: {kind}, {units[position]}",
+            "value": rate,
+            "date": day.isoformat(),
+            "shown": f"{rate:.2f}%",
+            "for": _day(day),
+        }
+        late = _late(day, "day", "a business day's standing facility rate")
+        if late:
+            figure["late"] = late
+        figures.append(figure)
+    return {
+        "dates_are": (
+            "for the OPR, the time CBSL's front page was read (it shows no date, only the rate in "
+            "force); for the standing facility rates, the business day in CBSL's 'Date' column"
+        ),
+        "cross_check": (
+            f"Checked: the SDF and SLF rates are 0.50% either side of the {OPR}, as CBSL sets them."
+        ),
+        "unit": "percent per year",
+        "figures": figures,
+        **page.stamp(data_library.report_url(report.report_id)),
+    }
+
+
 # --- Treasury bills -------------------------------------------------------------
 
 
@@ -405,6 +487,13 @@ SECTIONS = [
         _usd_buy_and_sell,
     ),
     Section(
+        "Policy rates",
+        POLICY_TITLE,
+        f"{CBSL}, Data Library",
+        data_library.report_url(interest_rates.REPORTS["policy"].report_id),
+        _policy_rates,
+    ),
+    Section(
         "Lending and deposit rates",
         LENDING_TITLE,
         f"{CBSL}, Data Library",
@@ -493,15 +582,19 @@ def render(sections: list[dict], today: date, prepared: str) -> str:
             lines.append(f"| {group} | Loading, {wait_at_most} ({note(section['loading'])}) | — | — | {source} |")
             continue
         if "cross_check" in section:
-            checked = f"Figures are the '{section['figures_are']}' column. {section['cross_check']}"
+            checked = section["cross_check"]
+            if "figures_are" in section:
+                checked = f"Figures are the '{section['figures_are']}' column. {checked}"
             group += f" ({note(checked)})"
         flag = f" ⚠ ({note(section['note'])})" if "note" in section else ""
         for figure in section["figures"]:
             why = f" ({note(figure['not_shown_because'])})" if "not_shown_because" in figure else ""
             late = f" ⚠ ({note(figure['late'])})" if "late" in figure else ""
+            own = figure.get("source")  # a figure read from another page of the same publisher
+            where = f"[{_cell(own['label'])}]({own['url']})" if own else source
             lines.append(
                 f"| {group} | {_cell(figure['label'])} | {_cell(figure['shown'])}{why} "
-                f"| {_cell(figure['for'])}{flag}{late} | {source} |"
+                f"| {_cell(figure['for'])}{flag}{late} | {where} |"
             )
             group = ""
     for item in NOT_SHOWN:
@@ -617,7 +710,9 @@ def csv_text(sheet: dict) -> str:
         notes = [section.get("cross_check"), section.get("note")]
         for figure in section["figures"]:
             note = " ".join(text for text in notes + [figure.get("late"), figure.get("not_shown_because")] if text)
-            writer.writerow([section["group"], figure["label"], figure["shown"], figure["for"], source, section["source_url"], note])
+            own = figure.get("source")
+            where, link = (own["label"], own["url"]) if own else (source, section["source_url"])
+            writer.writerow([section["group"], figure["label"], figure["shown"], figure["for"], where, link, note])
     for item in NOT_SHOWN:
         writer.writerow([item["item"].split(" (")[0], item["in_short"], "", "", "", "", ""])
     writer.writerow([])

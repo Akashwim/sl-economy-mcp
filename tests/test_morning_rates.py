@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from sl_economy_mcp import bill_auctions, data_library, exchange_rates, inflation, morning_rates, treasury_yields
+from sl_economy_mcp import bill_auctions, data_library, exchange_rates, inflation, morning_rates, snapshot, treasury_yields
 from sl_economy_mcp.errors import PageChanged, SourceUnavailable
 from sl_economy_mcp.fetch import Page
 from sl_economy_mcp.tables import heading_cells
@@ -32,6 +32,7 @@ TITLES = [
     "Measures of Consumer Price Inflation",
     "Daily Indicative Exchange Rates",
     "Daily Buy and Sell Exchange Rates",
+    "Daily Operations",
     "Commercial Bank Lending and Deposit Rates ( Per cent per annum )",
     "Auction Result: Treasury Bills",
 ]
@@ -71,6 +72,8 @@ def sources(monkeypatch):
         exchange_rates.INDICATIVE.results_url: saved("indicative_USD_2026-10-01_to_09.html"),
         exchange_rates.TT.results_url: saved("tt_USD_2026-10-01_to_09.html"),
         "lending": saved("library_lending_2026-08-01_to_10-09.html"),
+        "policy": saved("library_policy_2026-09-25_to_10-09.html"),
+        snapshot.RATE_WINDOW_URL: saved("ratewindow_2026-10-09.html"),
         "daily report page": saved("treasury_daily_report_page_2026-10-13.html"),
         "bill results page": saved("bill_auction_results_page_2026-10-16.html"),
         BILL_RESULTS: bill_auctions.pdf_text((FIXTURES / "bill_auction_2026-10-14.pdf").read_bytes()),
@@ -82,7 +85,7 @@ def sources(monkeypatch):
         return Page(url, pages[url].encode(), FETCHED)
 
     def fake_search(report_id, start, end):
-        return Page("unused", pages["lending"].encode(), FETCHED)
+        return Page("unused", pages["policy" if report_id == 1059 else "lending"].encode(), FETCHED)
 
     def fake_ministry(url, **options):
         if url == bill_auctions.LISTING_URL:
@@ -123,7 +126,7 @@ def test_every_section_is_there_under_the_sources_own_title(sources):
     result = sheet()
     assert [section["title"] for section in result["sections"]] == TITLES
     assert [section["group"] for section in result["sections"]] == [
-        "Inflation", "US dollar", "US dollar", "Lending and deposit rates", "Treasury bills",
+        "Inflation", "US dollar", "US dollar", "Policy rates", "Lending and deposit rates", "Treasury bills",
     ]  # fmt: skip
     assert not any("not_available" in section for section in result["sections"])
     assert result["sheet"] == "Morning Sheet"
@@ -164,12 +167,12 @@ def test_daily_rates_that_are_not_todays_say_so(sources, monkeypatch):
     for title in ("Daily Indicative Exchange Rates", "Daily Buy and Sell Exchange Rates"):
         assert by_title[title]["note"] == "The latest published rate is for 9 Oct 2026, not today (12 Oct 2026)."
     # Monthly, weekly and auction figures are never today's, so they carry no such note.
-    assert not any("note" in by_title[title] for title in (TITLES[0], TITLES[3]))
-    assert "not today" not in by_title[TITLES[4]].get("note", "")
+    assert not any("note" in by_title[title] for title in (TITLES[0], TITLES[4]))
+    assert "not today" not in by_title[TITLES[5]].get("note", "")
 
 
 def test_lending_and_deposit_rates_under_cbsls_own_headings(sources):
-    section = sheet()["by_title"][TITLES[3]]
+    section = sheet()["by_title"][TITLES[4]]
     # CBSL's headings exactly as printed, its "Weigted" typo included. The
     # deposit rate's unexplained "6 months" column (7.13) is not shown.
     assert figures(section) == [
@@ -200,21 +203,21 @@ def test_a_changed_rate_heading_blanks_the_section(sources, old, new):
     spaced = r"\s+".join(map(re.escape, old.split()))  # CBSL breaks long headings across lines
     assert len(re.findall(spaced, sources["lending"])) == 1, old
     sources["lending"] = re.sub(spaced, new, sources["lending"])
-    section = sheet()["by_title"][TITLES[3]]
+    section = sheet()["by_title"][TITLES[4]]
     assert "figures" not in section and "rate headings" in section["not_available"]
 
 
 def test_deposit_columns_in_another_order_are_refused(sources):
     swapped = sources["lending"].replace(">Weekly<", ">Monthly<", 1)
     sources["lending"] = swapped
-    section = sheet()["by_title"][TITLES[3]]
+    section = sheet()["by_title"][TITLES[4]]
     assert "figures" not in section and "column headings" in section["not_available"]
 
 
 def test_a_missing_monthly_rate_blanks_only_its_own_row(sources):
     assert sources["lending"].count("9.34</td>") == 1
     sources["lending"] = sources["lending"].replace("9.34</td>", "</td>")
-    section = sheet()["by_title"][TITLES[3]]
+    section = sheet()["by_title"][TITLES[4]]
     assert [figure["shown"] for figure in section["figures"]] == ["11.04%", "12.59%", "7.52%", "—"]
     assert "lists no 'Average Weighted Fixed Deposit Rate (AWFDR) Rate (% )'" in section["figures"][3]["not_shown_because"]
 
@@ -222,7 +225,7 @@ def test_a_missing_monthly_rate_blanks_only_its_own_row(sources):
 def test_a_monthly_rate_not_dated_at_a_month_end_is_not_shown(sources):
     assert sources["lending"].count("2026-08-31</td>") == 1
     sources["lending"] = sources["lending"].replace("2026-08-31</td>", "2026-08-30</td>")
-    section = sheet()["by_title"][TITLES[3]]
+    section = sheet()["by_title"][TITLES[4]]
     assert [figure["shown"] for figure in section["figures"][1:]] == ["—", "—", "—"]
     assert section["figures"][1]["not_shown_because"] == "CBSL dates this monthly figure 2026-08-30, not the last day of a month."
 
@@ -310,7 +313,7 @@ def test_a_site_that_is_down_still_counts_as_down_not_as_a_changed_page(sources,
 
     monkeypatch.setattr(treasury_yields, "latest_summary", down)
     with pytest.raises(SourceUnavailable):  # the live check counts this as "unreachable", not "broken"
-        morning_rates.SECTIONS[4].read()
+        morning_rates.SECTIONS[5].read()
 
 
 def test_no_bill_rate_is_shown_if_the_daily_report_is_older_than_both_auctions(sources, monkeypatch):
@@ -365,11 +368,15 @@ def test_the_table_is_one_sheet_with_notes(sources):
     assert "|  | Average Weigted Lending Rate (AWLR) | 12.59% | Aug 2026 |" in table
     assert "|  | Average Weighted Deposit Rate: Monthly | 7.52% | Aug 2026 |" in table
     assert "|  | Average Weighted Fixed Deposit Rate (AWFDR) Rate (% ) | 9.34% | Aug 2026 |" in table
-    assert "| **Treasury bills** (note 1) | 91 days | 9.26% | auction of 7 Oct 2026 ⚠ (note 2) |" in table
+    assert "| **Policy rates** (note 1) | Overnight Policy Rate | 8.75% | in force at 13:30, 9 Oct 2026 | [CBSL: Overnight Policy Rate (front page)](https://www.cbsl.gov.lk/en) |" in table
+    assert "|  | Standing Facilities: SDF, Rate (%) | 8.25% | 9 Oct 2026 | [CBSL Data Library: Daily Operations](" in table
+    assert "|  | Standing Facilities: SLF, Rate (%) | 9.25% | 9 Oct 2026 |" in table
+    assert "\n1. Checked: the SDF and SLF rates are 0.50% either side of the Overnight Policy Rate, as CBSL sets them." in table
+    assert "| **Treasury bills** (note 2) | 91 days | 9.26% | auction of 7 Oct 2026 ⚠ (note 3) |" in table
     assert f"| **Treasury bonds** | {BONDS} | — | — | — |" in table
     assert "| **FD ceiling rate** | Still in development. Until then, please refer to the team's existing source. |" in table
-    assert "\n1. Figures are the 'Weighted Average Yield Rate (WAYR) (%), Last Auction' column. Checked:" in table
-    assert "\n2. The auction of 14 Oct 2026 has results, but no daily report confirms them yet" in table
+    assert "\n2. Figures are the 'Weighted Average Yield Rate (WAYR) (%), Last Auction' column. Checked:" in table
+    assert "\n3. The auction of 14 Oct 2026 has results, but no daily report confirms them yet" in table
     assert "[CBSL: Daily Indicative Exchange Rates](https://www.cbsl.gov.lk/" in table
     assert "[Ministry of Finance (PDMO): Auction Result: Treasury Bills](" in table
     assert table.rstrip().endswith(f"*{morning_rates.DISCLAIMER}*")
@@ -396,17 +403,21 @@ def test_the_table_says_when_a_section_is_not_available(sources, monkeypatch):
 
 
 def test_one_source_being_down_leaves_the_others_untouched(sources, monkeypatch):
-    def down(report_id, start, end):
-        raise SourceUnavailable("CBSL's Data Library did not answer after two tries.")
+    working = data_library.search
 
-    monkeypatch.setattr(data_library, "search", down)
+    def lending_down(report_id, start, end):
+        if report_id == 6277:
+            raise SourceUnavailable("CBSL's Data Library did not answer after two tries.")
+        return working(report_id, start, end)
+
+    monkeypatch.setattr(data_library, "search", lending_down)
     result = sheet()
-    lending = result["by_title"][TITLES[3]]
+    lending = result["by_title"][TITLES[4]]
     assert lending["not_available"] == "CBSL's Data Library did not answer after two tries."
     assert "figures" not in lending
     assert lending["source_url"].endswith("ReportId=6277")  # still says where to look by hand
     others = [section for section in result["sections"] if section is not lending]
-    assert len(others) == 4 and not any("not_available" in section for section in others)
+    assert len(others) == 5 and not any("not_available" in section for section in others)
 
 
 @pytest.mark.parametrize(
@@ -415,9 +426,9 @@ def test_one_source_being_down_leaves_the_others_untouched(sources, monkeypatch)
         (inflation.TABLE_URL, ">Core Inflation<", ">Underlying Inflation<", TITLES[0]),
         (exchange_rates.INDICATIVE.results_url, "USD  -&gt; LKR", "EUR  -&gt; LKR", TITLES[1]),
         (exchange_rates.TT.results_url, "Sell Rate (LKR)", "Sell Rate (USD)", TITLES[2]),
-        ("lending", ">Weekly<", ">Daily<", TITLES[3]),
-        ("bill results page", "Treasury Bills", "Treasury Notes", TITLES[4]),
-        (BILL_RESULTS, "Current \nAuction \nLast", "Last \nAuction \nCurrent", TITLES[4]),
+        ("lending", ">Weekly<", ">Daily<", TITLES[4]),
+        ("bill results page", "Treasury Bills", "Treasury Notes", TITLES[5]),
+        (BILL_RESULTS, "Current \nAuction \nLast", "Last \nAuction \nCurrent", TITLES[5]),
     ],
 )
 def test_a_changed_heading_blanks_that_section_only(sources, page, old, new, title):
@@ -437,7 +448,7 @@ def test_no_dollar_rate_in_the_last_two_weeks_is_said_plainly(sources):
 
 def test_no_weekly_rate_in_five_weeks_is_said_plainly(sources):
     sources["lending"] = saved("library_lending_empty.html")
-    section = sheet()["by_title"][TITLES[3]]
+    section = sheet()["by_title"][TITLES[4]]
     assert section["not_available"] == "CBSL's Data Library lists no lending or deposit rates between 2026-07-01 and 2026-10-09."
 
 
@@ -523,12 +534,12 @@ def test_a_slow_section_says_loading_and_shows_the_rest_on_time(sources, monkeyp
     started = time.monotonic()
     result = sheet()
     assert time.monotonic() - started < 0.9  # did not wait for the slow source
-    bills = result["by_title"][TITLES[4]]
+    bills = result["by_title"][TITLES[5]]
     assert "figures" not in bills and "not_available" not in bills
     assert bills["loading"].startswith("Loading: the Ministry of Finance (PDMO) website is slow to respond.")
     assert "this takes up to 30 seconds" in bills["loading"]
     assert result["check_again"] is True
-    assert "| **Treasury bills** | Loading, up to 30 seconds (note 1) | — | — |" in result["table"]
+    assert "| **Treasury bills** | Loading, up to 30 seconds (note 2) | — | — |" in result["table"]
     others = [section for section in result["sections"] if section is not bills]
     assert all("figures" in section for section in others)
 
@@ -539,7 +550,7 @@ def test_the_second_look_waits_for_the_same_downloads_and_shows_checked_rates(so
     assert sheet()["check_again"] is True
     second = sheet()  # the look the assistant is asked to take
     assert second["check_again"] is False
-    bills = second["by_title"][TITLES[4]]
+    bills = second["by_title"][TITLES[5]]
     assert [figure["shown"] for figure in bills["figures"]] == ["9.26%", "9.44%", "9.95%"]
     assert bills["cross_check"].startswith("Checked:")
     assert reads == [1]  # read once: the second look did not start the downloads again
@@ -552,7 +563,7 @@ def test_still_loading_on_the_second_look_asks_the_person_to_try_later(sources, 
     sheet()
     second = sheet()
     assert second["check_again"] is False  # one second look only, never a loop
-    bills = second["by_title"][TITLES[4]]
+    bills = second["by_title"][TITLES[5]]
     assert bills["not_available"].startswith("Still loading: the Ministry of Finance (PDMO) website has still not answered.")
 
 
@@ -621,14 +632,14 @@ def test_figures_of_a_normal_age_carry_no_warning(sources):
     "today, title, age",
     [
         (date(2026, 11, 15), TITLES[0], 76),  # August's inflation, from 31 Aug
-        (date(2026, 10, 24), TITLES[3], 22),  # AWPR for the week ending 2 Oct (the monthly rates are not late)
-        (date(2026, 10, 24), TITLES[4], 17),  # the auction of 7 Oct
+        (date(2026, 10, 24), TITLES[4], 22),  # AWPR for the week ending 2 Oct (the monthly rates are not late)
+        (date(2026, 10, 24), TITLES[5], 17),  # the auction of 7 Oct
     ],
 )
 def test_a_figure_older_than_usual_is_shown_but_flagged(sources, monkeypatch, today, title, age):
     monkeypatch.setattr(morning_rates, "today_in_sri_lanka", lambda: today)
     section = sheet()["by_title"][title]
-    for figure in section["figures"][:1] if title == TITLES[3] else section["figures"]:
+    for figure in section["figures"][:1] if title == TITLES[4] else section["figures"]:
         assert figure["value"] is not None  # still the source's latest, so still shown
         assert figure["late"].startswith("Older than usual:")
         assert f"this one is {age} days old" in figure["late"]
@@ -637,8 +648,8 @@ def test_a_figure_older_than_usual_is_shown_but_flagged(sources, monkeypatch, to
 def test_one_day_younger_is_not_flagged(sources, monkeypatch):
     monkeypatch.setattr(morning_rates, "today_in_sri_lanka", lambda: date(2026, 10, 23))
     by_title = sheet()["by_title"]
-    assert "late" not in by_title[TITLES[3]]["figures"][0]  # 21 days: the usual limit
-    assert "late" not in by_title[TITLES[4]]["figures"][0]  # 16 days: the usual limit
+    assert "late" not in by_title[TITLES[4]]["figures"][0]  # 21 days: the usual limit
+    assert "late" not in by_title[TITLES[5]]["figures"][0]  # 16 days: the usual limit
 
 
 def test_the_warning_is_numbered_once_in_the_table(sources, monkeypatch):
@@ -660,7 +671,7 @@ def test_a_site_that_is_down_does_not_ask_anyone_to_fix_the_tool(sources, monkey
         raise SourceUnavailable("CBSL's Data Library did not answer after two tries.")
 
     monkeypatch.setattr(data_library, "search", down)
-    assert sheet()["by_title"][TITLES[3]]["not_available"] == "CBSL's Data Library did not answer after two tries."
+    assert sheet()["by_title"][TITLES[4]]["not_available"] == "CBSL's Data Library did not answer after two tries."
 
 
 def test_in_early_january_both_ministry_lists_fall_back_to_last_year(sources, monkeypatch):
@@ -691,7 +702,78 @@ def test_in_early_january_both_ministry_lists_fall_back_to_last_year(sources, mo
 
 def test_monthly_bank_rates_older_than_usual_are_flagged(sources, monkeypatch):
     monkeypatch.setattr(morning_rates, "today_in_sri_lanka", lambda: date(2026, 11, 15))  # 76 days after 31 Aug
-    section = sheet()["by_title"][TITLES[3]]
+    section = sheet()["by_title"][TITLES[4]]
     for figure in section["figures"][1:]:
         assert figure["value"] is not None
         assert "a monthly bank rate, counted from the month's end, is normally no more than 75 days old" in figure["late"]
+
+
+# --- Policy rates ------------------------------------------------------------------
+
+
+def test_policy_rates_from_both_cbsl_sources_checked_against_each_other(sources):
+    section = sheet()["by_title"]["Daily Operations"]
+    assert figures(section) == [
+        ("Overnight Policy Rate", 8.75, "2026-10-09"),
+        ("Standing Facilities: SDF, Rate (%)", 8.25, "2026-10-09"),
+        ("Standing Facilities: SLF, Rate (%)", 9.25, "2026-10-09"),
+    ]
+    # The front page shows no date, only the rate in force when it was read.
+    assert shown(section)[0][1:] == ("8.75%", "in force at 13:30, 9 Oct 2026")
+    assert section["figures"][0]["source"] == {"label": "CBSL: Overnight Policy Rate (front page)", "url": "https://www.cbsl.gov.lk/en"}
+    assert "source" not in section["figures"][1]  # the section's own table
+    assert section["source_url"].endswith("ReportId=1059")
+    assert section["cross_check"].startswith("Checked: the SDF and SLF rates are 0.50% either side")
+
+
+def test_policy_rates_that_disagree_are_not_shown(sources):
+    # As on the day CBSL changes its policy rate, before its tables catch up.
+    assert sources[snapshot.RATE_WINDOW_URL].count("8.75 %") == 1
+    sources[snapshot.RATE_WINDOW_URL] = sources[snapshot.RATE_WINDOW_URL].replace("8.75 %", "9.00 %")
+    section = sheet()["by_title"]["Daily Operations"]
+    assert "figures" not in section
+    assert section["not_available"].startswith("The policy rates are not shown, because CBSL's two sources disagree:")
+    assert "Overnight Policy Rate as 9.00%" in section["not_available"]
+    assert "SDF rate as 8.25% and the SLF rate as 9.25%" in section["not_available"]
+    assert morning_rates.LOOKS_AFTER not in section["not_available"]  # nothing to fix: it passes
+
+
+def test_a_changed_standing_facility_heading_blanks_the_policy_rates(sources):
+    assert sources["policy"].count('<td colspan="2">SDF</td>') == 1
+    sources["policy"] = sources["policy"].replace('<td colspan="2">SDF</td>', '<td colspan="2">SDFR</td>')
+    section = sheet()["by_title"]["Daily Operations"]
+    assert "figures" not in section
+    assert "standing facility headings" in section["not_available"]
+    assert section["not_available"].endswith(morning_rates.LOOKS_AFTER)
+
+
+def test_a_front_page_without_its_policy_rate_heading_blanks_the_policy_rates(sources):
+    sources[snapshot.RATE_WINDOW_URL] = sources[snapshot.RATE_WINDOW_URL].replace("Overnight Policy Rate", "Policy Rate")
+    section = sheet()["by_title"]["Daily Operations"]
+    assert "figures" not in section and "Overnight Policy Rate" in section["not_available"]
+
+
+def test_standing_facility_rates_older_than_usual_are_flagged(sources, monkeypatch):
+    monkeypatch.setattr(morning_rates, "today_in_sri_lanka", lambda: date(2026, 10, 20))  # 11 days after 9 Oct
+    section = sheet()["by_title"]["Daily Operations"]
+    assert "late" not in section["figures"][0]  # the OPR is read live; it has no age
+    assert all("is 11 days old" in figure["late"] for figure in section["figures"][1:])
+
+
+def test_the_saved_file_names_the_opr_s_own_source(sources):
+    import csv
+
+    rows = list(csv.reader(morning_rates.csv_text(morning_rates.get_morning_rates()).splitlines()))
+    opr = next(row for row in rows if row[1:2] == ["Overnight Policy Rate"])
+    assert opr[:6] == ["Policy rates", "Overnight Policy Rate", "8.75%", "in force at 13:30, 9 Oct 2026",
+                       "CBSL: Overnight Policy Rate (front page)", "https://www.cbsl.gov.lk/en"]  # fmt: skip
+
+
+def test_a_lending_facility_rate_out_of_line_is_enough_to_withhold_all_three(sources):
+    import re
+
+    assert len(re.findall(r">\s*9\.25\s*<", sources["policy"])) == 11  # the SLF rate, once a day, and nothing else
+    sources["policy"] = re.sub(r">(\s*)9\.25(\s*)<", r">\g<1>9.50\g<2><", sources["policy"])
+    section = sheet()["by_title"]["Daily Operations"]
+    assert "figures" not in section
+    assert "SDF rate as 8.25% and the SLF rate as 9.50%" in section["not_available"]
