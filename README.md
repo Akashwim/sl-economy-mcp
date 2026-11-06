@@ -1,13 +1,15 @@
 # sl-economy-mcp
 
 [![tests](https://github.com/Akashwim/sl-economy-mcp/actions/workflows/tests.yml/badge.svg)](https://github.com/Akashwim/sl-economy-mcp/actions/workflows/tests.yml)
-[![live check](https://github.com/Akashwim/sl-economy-mcp/actions/workflows/live-check.yml/badge.svg)](https://github.com/Akashwim/sl-economy-mcp/actions/workflows/live-check.yml)
+[![PyPI](https://img.shields.io/pypi/v/sl-economy-mcp)](https://pypi.org/project/sl-economy-mcp/)
 
 An unofficial [MCP](https://modelcontextprotocol.io) server that lets Claude and other AI assistants fetch live, official Sri Lankan economic data from the [Central Bank of Sri Lanka](https://www.cbsl.gov.lk) (CBSL) and the Ministry of Finance's [Public Debt Management Office](https://www.treasury.gov.lk/web/public-debt-management-office) (PDMO).
 
 Several MCP servers already cover Colombo Stock Exchange share prices. This one covers the macro side: interest rates, inflation, the rupee and Treasury bills.
 
 Every call fetches fresh data from the source, and every answer says where each figure came from, when it was fetched and which date it is for. A figure that cannot be read reliably is left out with the reason, never estimated.
+
+**Install in one click (Windows or Mac):** download `sl-economy-mcp-<version>.mcpb` from the [latest release](https://github.com/Akashwim/sl-economy-mcp/releases/latest) and double-click it in Claude's desktop app. Nothing else to install. [Other ways to install](#install).
 
 ## The Morning Sheet
 
