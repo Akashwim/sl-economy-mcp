@@ -41,7 +41,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-from . import bill_auctions, data_library, exchange_rates, inflation, interest_rates, snapshot, treasury_yields
+from . import __version__, bill_auctions, data_library, exchange_rates, inflation, interest_rates, snapshot, treasury_yields
 from .dates import SRI_LANKA_TIME, today_in_sri_lanka
 from .errors import Disagreement, ExpectedProblem, NoData, PageChanged
 from .fetch import fetch
@@ -54,6 +54,10 @@ SHEET_DEADLINE_SECONDS = 45  # the whole sheet answers within this, even if one 
 FOLLOW_UP_SECONDS = 30  # the most a second look waits for a section still loading; the sheet says so
 
 log = logging.getLogger(__name__)
+
+# Shown under every sheet, so two people whose sheets differ can see at a
+# glance whether one of them has an older version of the tool.
+VERSION = f"sl-economy-mcp {__version__}"
 
 DISCLAIMER = (
     "Unofficial tool, not affiliated with the Central Bank of Sri Lanka or the "
@@ -602,7 +606,7 @@ def render(sections: list[dict], today: date, prepared: str) -> str:
         lines.append(f"| **{name}** | {item['in_short']} | — | — | — |")
 
     lines += ["", *[f"{n}. {text}" for n, text in enumerate(notes, start=1)]] if notes else []
-    lines += ["", f"*{DISCLAIMER}*"]
+    lines += ["", f"*{DISCLAIMER}*", "", f"*{VERSION}*"]
     return "\n".join(lines)
 
 
@@ -678,6 +682,7 @@ def get_morning_rates() -> dict:
     prepared = datetime.now(SRI_LANKA_TIME).strftime("%H:%M")
     return {
         "sheet": "Morning Sheet",
+        "version": __version__,
         "date": today.isoformat(),
         "prepared_at_sri_lanka": prepared,
         "check_again": check_again,
@@ -717,6 +722,7 @@ def csv_text(sheet: dict) -> str:
         writer.writerow([item["item"].split(" (")[0], item["in_short"], "", "", "", "", ""])
     writer.writerow([])
     writer.writerow([DISCLAIMER])
+    writer.writerow([VERSION])
     return out.getvalue()
 
 

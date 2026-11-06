@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from sl_economy_mcp import bill_auctions, data_library, exchange_rates, inflation, morning_rates, snapshot, treasury_yields
+from sl_economy_mcp import __version__, bill_auctions, data_library, exchange_rates, inflation, morning_rates, snapshot, treasury_yields
 from sl_economy_mcp.errors import PageChanged, SourceUnavailable
 from sl_economy_mcp.fetch import Page
 from sl_economy_mcp.tables import heading_cells
@@ -379,7 +379,7 @@ def test_the_table_is_one_sheet_with_notes(sources):
     assert "\n3. The auction of 14 Oct 2026 has results, but no daily report confirms them yet" in table
     assert "[CBSL: Daily Indicative Exchange Rates](https://www.cbsl.gov.lk/" in table
     assert "[Ministry of Finance (PDMO): Auction Result: Treasury Bills](" in table
-    assert table.rstrip().endswith(f"*{morning_rates.DISCLAIMER}*")
+    assert table.rstrip().endswith(f"*{morning_rates.DISCLAIMER}*\n\n*sl-economy-mcp {__version__}*")
 
 
 def test_the_table_flags_rates_that_are_not_todays(sources, monkeypatch):
@@ -609,7 +609,7 @@ def test_the_sheet_as_a_csv_file(sources):
     assert bill[2:4] == ["9.44%", "auction of 7 Oct 2026"]  # as displayed, so Excel keeps 9.40, not 9.4
     assert bill[6].startswith("Checked:") and "no daily report confirms them yet" in bill[6]
     assert ["Treasury bonds", BONDS, "", "", "", "", ""] in rows
-    assert rows[-1] == [morning_rates.DISCLAIMER]
+    assert rows[-2:] == [[morning_rates.DISCLAIMER], [f"sl-economy-mcp {__version__}"]]
 
 
 def test_save_csv_writes_a_dated_file(sources, tmp_path, monkeypatch):
@@ -777,3 +777,9 @@ def test_a_lending_facility_rate_out_of_line_is_enough_to_withhold_all_three(sou
     section = sheet()["by_title"]["Daily Operations"]
     assert "figures" not in section
     assert "SDF rate as 8.25% and the SLF rate as 9.50%" in section["not_available"]
+
+
+def test_the_sheet_says_which_version_made_it(sources):
+    result = sheet()
+    assert result["version"] == __version__
+    assert f"*sl-economy-mcp {__version__}*" in result["table"]
