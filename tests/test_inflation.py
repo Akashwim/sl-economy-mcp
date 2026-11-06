@@ -9,7 +9,7 @@ from sl_economy_mcp import inflation
 from sl_economy_mcp.errors import InvalidRequest, NoData, PageChanged
 from sl_economy_mcp.fetch import Page
 
-SAVED_TABLE = (Path(__file__).parent / "fixtures" / "inflation_table_2026-10-09.html").read_text()
+SAVED_TABLE = (Path(__file__).parent / "fixtures" / "inflation_table_2026-10-09.html").read_text(encoding="utf-8")
 
 
 def test_reads_every_month_oldest_first():

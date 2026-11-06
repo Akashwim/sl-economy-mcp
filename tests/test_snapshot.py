@@ -14,7 +14,7 @@ from sl_economy_mcp.errors import PageChanged, SourceUnavailable
 from sl_economy_mcp.fetch import Page
 from sl_economy_mcp.snapshot import parse_rate_window
 
-SAVED_PAGE = (Path(__file__).parent / "fixtures" / "ratewindow_2026-10-09.html").read_text()
+SAVED_PAGE = (Path(__file__).parent / "fixtures" / "ratewindow_2026-10-09.html").read_text(encoding="utf-8")
 
 
 def test_reads_all_four_numbers_from_saved_page():
@@ -60,9 +60,9 @@ FIXTURES = Path(__file__).parent / "fixtures"
 @pytest.fixture
 def fake_cbsl(monkeypatch):
     """Saved copies of the headline page and the two dated tables it is checked against."""
-    table = inflation.parse_inflation_table((FIXTURES / "inflation_table_2026-10-09.html").read_text())
+    table = inflation.parse_inflation_table((FIXTURES / "inflation_table_2026-10-09.html").read_text(encoding="utf-8"))
     dated = exchange_rates.parse_rate_table(
-        (FIXTURES / "tt_USD_2026-10-01_to_09.html").read_text(), exchange_rates.TT.heading
+        (FIXTURES / "tt_USD_2026-10-01_to_09.html").read_text(encoding="utf-8"), exchange_rates.TT.heading
     )
     page = Page(snapshot.RATE_WINDOW_URL, SAVED_PAGE.encode(), datetime(2026, 10, 9, 8, 0, tzinfo=timezone.utc))
     monkeypatch.setattr(snapshot, "fetch", lambda url, form=None: page)

@@ -18,7 +18,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def saved(name: str) -> str:
-    return (FIXTURES / name).read_text()
+    return (FIXTURES / name).read_text(encoding="utf-8")
 
 
 INDICATIVE_USD = saved("indicative_USD_2026-10-01_to_09.html")

@@ -10,10 +10,10 @@ from sl_economy_mcp.errors import InvalidRequest, NoData, PageChanged, SourceUna
 from sl_economy_mcp.fetch import Page
 
 FIXTURES = Path(__file__).parent / "fixtures"
-LENDING = (FIXTURES / "library_lending_2026-08-01_to_10-09.html").read_text()
-LENDING_EMPTY = (FIXTURES / "library_lending_empty.html").read_text()
-POLICY = (FIXTURES / "library_policy_2026-05-18_to_29.html").read_text()
-INFLATION = (FIXTURES / "inflation_table_2026-10-09.html").read_text()
+LENDING = (FIXTURES / "library_lending_2026-08-01_to_10-09.html").read_text(encoding="utf-8")
+LENDING_EMPTY = (FIXTURES / "library_lending_empty.html").read_text(encoding="utf-8")
+POLICY = (FIXTURES / "library_policy_2026-05-18_to_29.html").read_text(encoding="utf-8")
+INFLATION = (FIXTURES / "inflation_table_2026-10-09.html").read_text(encoding="utf-8")
 
 LENDING_TITLE = interest_rates.REPORTS["lending"].title
 POLICY_TITLE = interest_rates.REPORTS["policy"].title
