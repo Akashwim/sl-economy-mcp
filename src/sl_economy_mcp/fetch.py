@@ -9,6 +9,7 @@ Every tool goes through here so that they all behave the same way:
 """
 
 import logging
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -109,16 +110,25 @@ def _download(url: str, form: dict | None, session, timeout: int, site: str) -> 
         ) from error
 
 
-_cache: dict[tuple, tuple[float, Page]] = {}
+_cache: dict[tuple, tuple[float, Page]] = {}  # key -> (when it stops being fresh, page)
+_cache_lock = threading.Lock()  # sections of the Morning Sheet save pages at the same time
 
 
 def cached(key: tuple, get_page, seconds: int = CACHE_SECONDS) -> Page:
-    """The page saved under `key` if it is recent, otherwise whatever `get_page()` returns."""
+    """The page saved under `key` if it is recent, otherwise whatever `get_page()` returns.
+
+    Each time a page is saved, pages that are no longer fresh are dropped, so
+    the cache cannot keep growing in a long session.
+    """
     saved = _cache.get(key)
-    if saved and time.monotonic() - saved[0] < seconds:
+    if saved and time.monotonic() < saved[0]:
         return saved[1]
     page = get_page()
-    _cache[key] = (time.monotonic(), page)
+    with _cache_lock:
+        now = time.monotonic()
+        for stale in [old for old, (until, _) in _cache.items() if until <= now]:
+            del _cache[stale]
+        _cache[key] = (now + seconds, page)
     return page
 
 

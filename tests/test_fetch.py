@@ -137,3 +137,15 @@ def test_a_failed_download_is_logged_with_its_reason(monkeypatch, caplog):
         fetch_module.download("https://example.test/page", site="Sri Lanka's Ministry of Finance")
     assert "Sri Lanka's Ministry of Finance: failed after " in caplog.messages[-1]
     assert "HTTP Error 502: Bad Gateway" in caplog.messages[-1]
+
+
+def test_pages_that_are_no_longer_fresh_are_dropped(monkeypatch):
+    clock = [1000.0]
+    monkeypatch.setattr(fetch_module, "_cache", {})
+    monkeypatch.setattr(fetch_module.time, "monotonic", lambda: clock[0])
+    cached(("short",), lambda: "a", seconds=60)
+    cached(("long",), lambda: "b", seconds=3600)
+    clock[0] += 61
+    cached(("new",), lambda: "c", seconds=60)
+    assert set(fetch_module._cache) == {("long",), ("new",)}  # the stale one is gone, the fresh ones stay
+
