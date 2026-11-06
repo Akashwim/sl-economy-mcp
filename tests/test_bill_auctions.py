@@ -270,3 +270,33 @@ def test_a_bill_with_no_rate_to_compare_is_named_not_counted_as_agreeing():
     _, problems, said = bill_auctions.cross_check(no_last, date(2026, 10, 7), daily(date(2026, 10, 13), [9.26, 9.44, 9.95]), "the report")
     assert problems == {}
     assert said.endswith("Not compared, because the result shows no rate to compare: 182 days.")
+
+
+def test_the_years_first_auction_finds_the_one_before_on_last_years_list(ministry, monkeypatch):
+    this_year = "<h1>Treasury Bills</h1>" + line("14.10.2026", "14 October 2026", RESULTS_FILE)
+    last_year = "<h1>Treasury Bills</h1>" + line("08.10.2026", "07 October 2026", FILE_STORE + "a") + line(
+        "01.10.2026", "30 September 2026", FILE_STORE + "b"
+    )
+    pages = {LISTING_URL: this_year, f"{LISTING_URL}/section/2026": last_year}
+    monkeypatch.setattr(bill_auctions, "today_in_sri_lanka", lambda: date(2027, 1, 2))
+    monkeypatch.setattr(bill_auctions, "ministry_get", lambda url, keep_seconds: Page(url, pages.get(url, url).encode(), FETCHED))
+    result, _, _, previous = bill_auctions.latest_result()
+    assert result.held_on == HELD_ON
+    assert previous == date(2026, 10, 7)  # so a report from before this auction can still confirm the one before
+
+
+def test_if_last_years_list_cannot_be_read_the_one_before_is_unknown_not_guessed(ministry, monkeypatch):
+    from sl_economy_mcp.errors import SourceUnavailable
+
+    this_year = "<h1>Treasury Bills</h1>" + line("14.10.2026", "14 October 2026", RESULTS_FILE)
+
+    def get(url, keep_seconds):
+        if url == LISTING_URL:
+            return Page(url, this_year.encode(), FETCHED)
+        if url.startswith(FILE_STORE):
+            return Page(url, url.encode(), FETCHED)
+        raise SourceUnavailable("Could not reach Sri Lanka's Ministry of Finance.")
+
+    monkeypatch.setattr(bill_auctions, "today_in_sri_lanka", lambda: date(2027, 1, 2))
+    monkeypatch.setattr(bill_auctions, "ministry_get", get)
+    assert bill_auctions.latest_result()[3] is None

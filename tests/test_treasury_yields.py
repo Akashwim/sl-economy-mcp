@@ -317,3 +317,18 @@ def test_excel_warnings_go_to_the_error_log_not_the_protocol_channel(capsys):
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "WARNING" in captured.err
+
+
+def test_an_empty_list_in_january_looks_at_last_years(monkeypatch):
+    def new_year(url, **options):
+        if url == PAGE_URL:  # the new year's list, nothing on it yet
+            return Page(f"{url}/section/2027", EMPTY_YEAR.encode(), FETCHED)
+        if url == f"{PAGE_URL}/section/2026":
+            return Page(url, PAGE.encode(), FETCHED)
+        return Page(url, FILE, FETCHED)
+
+    monkeypatch.setattr(treasury_yields, "download", new_year)
+    monkeypatch.setattr(treasury_yields, "today_in_sri_lanka", lambda: date(2027, 1, 2))
+    listed_on, summary, file = treasury_yields.latest_summary()
+    assert listed_on == date(2026, 10, 13)  # the newest report there is, on last year's list
+    assert file.url == REPORT_13_OCT

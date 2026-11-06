@@ -20,6 +20,7 @@
 - Every download, and every section of the sheet, is timed in the server's log (stderr).
 - A figure older than its source normally lets it get is still shown but flagged "Older than usual", with its age: inflation more than 75 days after the month's end, AWPR more than 21 days after the week's end, a Treasury bill auction more than 16 days old. This catches a source that quietly stops updating.
 - When a source's page has changed, the sheet also says "Please tell the person who looks after this tool for your team." The same note is numbered once in the table, however many rows use it.
+- Ready for the new year: if the Ministry's 2027 lists are still empty in early January, the daily report is now looked for on last year's list too (the bill results already were), and for the year's first auction the one before it is found on last year's list. Without this, the bill rates would have been blank every January until the first new report.
 - The GitHub live check runs by hand only: since 13 October 2026 CBSL refuses GitHub's servers, so the daily run failed every day.
 
 ## 0.1.0 - 2026-10-13

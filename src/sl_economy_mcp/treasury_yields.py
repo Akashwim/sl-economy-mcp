@@ -33,6 +33,7 @@ from urllib.parse import urljoin, urlsplit
 
 import xlrd
 
+from .dates import today_in_sri_lanka
 from .errors import NoData, PageChanged, SourceUnavailable
 from .fetch import Page, cached, download
 
@@ -226,6 +227,9 @@ def find_latest() -> tuple[date, str, Page]:
     """
     page = ministry_get(PAGE_URL, PAGE_CACHE_SECONDS)
     lines = parse_listing(page.text)
+    if not lines:  # early in January this year's list can still be empty
+        page = ministry_get(f"{PAGE_URL}/section/{today_in_sri_lanka().year - 1}", PAGE_CACHE_SECONDS)
+        lines = parse_listing(page.text)
     if not lines:
         raise NoData(f"The '{PAGE_TITLE}' page at {page.url} lists no {LINK_TEXT} yet.")
     newest = lines[0][0]

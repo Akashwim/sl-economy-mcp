@@ -36,7 +36,7 @@ from html import unescape
 import pypdf
 
 from .dates import today_in_sri_lanka
-from .errors import NoData, PageChanged
+from .errors import ExpectedProblem, NoData, PageChanged
 from .fetch import Page
 from .treasury_yields import (
     BILLS,
@@ -189,12 +189,14 @@ def latest_result() -> tuple[Result, str, Page, date | None]:
     Returns the result, the PDF's address, the list it was found on, and the
     date of the auction before it (None if that is not on the same list).
     """
+    last_year = f"{LISTING_URL}/section/{today_in_sri_lanka().year - 1}"
     page = ministry_get(LISTING_URL, PAGE_CACHE_SECONDS)
     files = parse_listing(page.text)
+    on_last_years_list = False
     if not files:  # early in January this year's list can still be empty
-        last_year = f"{LISTING_URL}/section/{today_in_sri_lanka().year - 1}"
         page = ministry_get(last_year, PAGE_CACHE_SECONDS)
         files = parse_listing(page.text)
+        on_last_years_list = True
     if not files:
         raise NoData(f"The Ministry's Treasury bill auction results page at {page.url} lists no results.")
 
@@ -218,7 +220,16 @@ def latest_result() -> tuple[Result, str, Page, date | None]:
             f"{page.url} to check by hand."
         )
     result, address = tables[0]
-    return result, address, page, auctions[1] if len(auctions) > 1 else None
+    previous = auctions[1] if len(auctions) > 1 else None
+    if previous is None and not on_last_years_list:
+        # The year's first auction: the one before it is on last year's list.
+        # Only its date is needed, to know which auction a daily report covers.
+        try:
+            earlier = parse_listing(ministry_get(last_year, PAGE_CACHE_SECONDS).text)
+        except ExpectedProblem:
+            earlier = []  # without it, a report from before this auction cannot confirm anything
+        previous = max((held_on for held_on, _ in earlier), default=None)
+    return result, address, page, previous
 
 
 # --- Step 3: the check against the daily report -------------------------------------

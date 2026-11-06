@@ -607,3 +607,29 @@ def test_a_site_that_is_down_does_not_ask_anyone_to_fix_the_tool(sources, monkey
 
     monkeypatch.setattr(data_library, "search", down)
     assert sheet()["by_title"][TITLES[3]]["not_available"] == "CBSL's Data Library did not answer after two tries."
+
+
+def test_in_early_january_both_ministry_lists_fall_back_to_last_year(sources, monkeypatch):
+    # On 2 January 2027 the Ministry's new lists may still be empty. The bill
+    # rates must still be found (and double-checked) on last year's lists.
+    serve_2026 = treasury_yields.download
+
+    def new_year(url, **options):
+        if url == bill_auctions.LISTING_URL:
+            return Page(f"{url}/section/2027", b"<h1>Treasury Bills</h1>", FETCHED)
+        if url == treasury_yields.PAGE_URL:
+            return Page(f"{url}/section/2027", b"<h1>Daily Report</h1>", FETCHED)
+        if url == f"{bill_auctions.LISTING_URL}/section/2026":
+            return serve_2026(bill_auctions.LISTING_URL)
+        if url == f"{treasury_yields.PAGE_URL}/section/2026":
+            return serve_2026(treasury_yields.PAGE_URL)
+        return serve_2026(url, **options)
+
+    january = lambda: date(2027, 1, 2)  # noqa: E731
+    monkeypatch.setattr(treasury_yields, "download", new_year)
+    for module in (morning_rates, bill_auctions, treasury_yields):
+        monkeypatch.setattr(module, "today_in_sri_lanka", january)
+    section = sheet()["by_title"]["Auction Result: Treasury Bills"]
+    assert [figure["shown"] for figure in section["figures"]] == ["9.26%", "9.44%", "9.95%"]
+    assert section["cross_check"].startswith("Checked:")
+    assert all(figure["late"].startswith("Older than usual") for figure in section["figures"])  # saved pages are from October
