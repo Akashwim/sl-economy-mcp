@@ -88,3 +88,14 @@ def test_bugs_are_not_shown_to_the_assistant(monkeypatch):
     with pytest.raises(UnexpectedToolError) as caught:
         asyncio.run(server.mcp.call_tool("get_snapshot", {}))
     assert "secret" not in str(caught.value)
+
+
+def test_tools_without_inputs_say_they_only_give_the_latest_figures():
+    # The MCP library ignores arguments a tool does not have, so an invented
+    # "as at" date would silently get today's figures. The description must
+    # tell the assistant there is no such input.
+    tools = {tool.name: tool for tool in asyncio.run(server.mcp.list_tools())}
+    for name in ("get_morning_rates", "get_snapshot"):
+        assert tools[name].input_schema.get("properties", {}) == {}
+        assert "takes no inputs and always gives the latest figures" in " ".join(tools[name].description.split())
+    assert "cannot give a sheet for an earlier date" in " ".join(tools["get_morning_rates"].description.split())

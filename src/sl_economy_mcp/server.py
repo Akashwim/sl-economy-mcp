@@ -79,6 +79,9 @@ def get_morning_rates() -> list:
     has the source's own label, the date it is for and a link to its source.
     Takes up to about 45 seconds.
 
+    It takes no inputs and always gives the latest figures. It cannot give a
+    sheet for an earlier date: if one is asked for, say so instead of calling it.
+
     The answer has two parts. The first is the finished sheet: show it
     exactly as it is, notes and all, and do not rebuild, reorder, shorten or
     add to it, or fill a gap from another tool. The second part holds the same
@@ -102,7 +105,8 @@ def get_snapshot() -> dict:
     Returns the overnight policy rate, CCPI inflation (year-on-year), the real
     policy rate (policy rate minus inflation) and the USD/LKR telegraphic
     transfer buying and selling rates, fetched live from cbsl.gov.lk, with the
-    date each figure refers to, the source URL and the fetch time.
+    date each figure refers to, the source URL and the fetch time. It takes
+    no inputs and always gives the latest figures, never an earlier date's.
     """
     return snapshot.get_snapshot()
 
