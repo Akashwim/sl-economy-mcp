@@ -459,13 +459,28 @@ def test_no_weekly_rate_in_five_weeks_is_said_plainly(sources):
     assert section["not_available"] == "CBSL's Data Library lists no lending or deposit rates between 2026-07-01 and 2026-10-09."
 
 
-def test_a_bug_is_not_dressed_up_as_a_missing_section(sources, monkeypatch):
+def test_a_fault_in_this_tool_blanks_only_its_section_and_says_so(sources, monkeypatch, caplog):
+    import logging
+
+    working = data_library.search
+
     def bug(report_id, start, end):
-        raise RuntimeError("a mistake in this project's own code")
+        if report_id == 6277:
+            raise RuntimeError("a mistake in this project's own code")
+        return working(report_id, start, end)
 
     monkeypatch.setattr(data_library, "search", bug)
-    with pytest.raises(RuntimeError):
-        morning_rates.get_morning_rates()
+    with caplog.at_level(logging.ERROR, logger="sl_economy_mcp"):
+        result = sheet()
+    lending = result["by_title"][TITLES[4]]
+    assert lending["not_available"] == (
+        "This section failed because of a fault in this tool, not in the source, so its figures "
+        "are not shown. Please tell the person who looks after this tool for your team."
+    )
+    assert "mistake" not in result["table"]  # the details are for the log, not the sheet
+    assert "a mistake in this project's own code" in caplog.text  # with the full traceback
+    others = [section for section in result["sections"] if section is not lending]
+    assert all("figures" in section for section in others)
 
 
 # --- Reading the sources' own headings ---------------------------------------

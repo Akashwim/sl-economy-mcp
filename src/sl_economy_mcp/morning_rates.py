@@ -681,11 +681,20 @@ def get_morning_rates() -> dict:
             check_again = True
         else:
             try:
-                entry.update(future.result())  # a bug in this project's own code is raised here
+                entry.update(future.result())
             except ExpectedProblem as problem:
                 entry["not_available"] = str(problem)
                 if isinstance(problem, PageChanged):  # only someone who looks after the tool can fix this
                     entry["not_available"] += f" {LOOKS_AFTER}"
+            except Exception:
+                # A mistake in this tool's own code. It must not take the rest of
+                # the sheet with it, nor pass for a problem with the source: the
+                # section says so plainly, and the details go to the log.
+                log.exception("%s: a fault in this tool", section.title)
+                entry["not_available"] = (
+                    "This section failed because of a fault in this tool, not in the source, "
+                    f"so its figures are not shown. {LOOKS_AFTER}"
+                )
         sections.append(entry)
     today = today_in_sri_lanka()
     prepared = datetime.now(SRI_LANKA_TIME).strftime("%H:%M")

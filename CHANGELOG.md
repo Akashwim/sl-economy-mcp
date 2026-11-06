@@ -25,6 +25,7 @@
 - The version of the tool is shown under every sheet (and in the CSV), so two sheets that differ can be traced to an older install.
 - An exchange rate of zero or below is refused as a mistyped page instead of being shown (it could also have made the history tool divide by zero), and so is a lending or deposit rate of zero or below on the Morning Sheet. Found in a review that fed every tool odd values.
 - The Morning Sheet and snapshot tool descriptions now say they take no inputs and only give the latest figures. The MCP library silently ignores arguments a tool does not have, so an assistant that invented an "as at" date would otherwise have been given today's figures without knowing.
+- A fault in this tool's own code now blanks only the Morning Sheet section it happened in, which says "a fault in this tool, not in the source" and asks the reader to tell whoever looks after the tool; the details go to the log. It used to stop the whole sheet.
 - Ready for the new year: if the Ministry's 2027 lists are still empty in early January, the daily report is now looked for on last year's list too (the bill results already were), and for the year's first auction the one before it is found on last year's list. Without this, the bill rates would have been blank every January until the first new report.
 - The GitHub live check runs by hand only: since 13 October 2026 CBSL refuses GitHub's servers, so the daily run failed every day.
 
