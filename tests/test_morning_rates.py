@@ -386,7 +386,7 @@ def test_the_table_is_one_sheet_with_notes(sources):
     assert "\n3. The auction of 14 Oct 2026 has results, but no daily report confirms them yet" in table
     assert "[CBSL: Daily Indicative Exchange Rates](https://www.cbsl.gov.lk/" in table
     assert "[Ministry of Finance (PDMO): Auction Result: Treasury Bills](" in table
-    assert table.rstrip().endswith(f"*{morning_rates.DISCLAIMER}*\n\n*sl-economy-mcp {__version__}*")
+    assert table.rstrip().endswith(f"*{morning_rates.DISCLAIMER}*")
 
 
 def test_the_table_flags_rates_that_are_not_todays(sources, monkeypatch):
@@ -804,7 +804,9 @@ def test_a_lending_facility_rate_out_of_line_is_enough_to_withhold_all_three(sou
 def test_the_sheet_says_which_version_made_it(sources):
     result = sheet()
     assert result["version"] == __version__
-    assert f"*sl-economy-mcp {__version__}*" in result["table"]
+    # Near the top: an assistant showing the sheet has been seen leaving off its last line.
+    assert result["table"].splitlines()[2].startswith("Prepared at ")
+    assert f", by sl-economy-mcp {__version__}." in result["table"].splitlines()[2]
 
 
 @pytest.mark.parametrize("typo", ["0.00", "-11.04"])

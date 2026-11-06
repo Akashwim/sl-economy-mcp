@@ -55,8 +55,9 @@ FOLLOW_UP_SECONDS = 30  # the most a second look waits for a section still loadi
 
 log = logging.getLogger(__name__)
 
-# Shown under every sheet, so two people whose sheets differ can see at a
-# glance whether one of them has an older version of the tool.
+# Shown at the top of every sheet (assistants have been seen leaving off a
+# last line), so two people whose sheets differ can see at a glance whether
+# one of them has an older version of the tool.
 VERSION = f"sl-economy-mcp {__version__}"
 
 DISCLAIMER = (
@@ -569,8 +570,8 @@ def render(sections: list[dict], today: date, prepared: str) -> str:
     lines = [
         f"## Morning Sheet: {today:%A} {today.day} {today:%B %Y}",
         "",
-        f"Prepared at {prepared}, Sri Lanka time. Every figure is the source's own, "
-        "under the source's own label, with the date it is for.",
+        f"Prepared at {prepared}, Sri Lanka time, by {VERSION}. Every figure is the "
+        "source's own, under the source's own label, with the date it is for.",
         "",
         "| Section | Item | Figure | For | Source |",
         "|---|---|---|---|---|",
@@ -615,7 +616,7 @@ def render(sections: list[dict], today: date, prepared: str) -> str:
         lines.append(f"| **{name}** | {item['in_short']} | — | — | — |")
 
     lines += ["", *[f"{n}. {text}" for n, text in enumerate(notes, start=1)]] if notes else []
-    lines += ["", f"*{DISCLAIMER}*", "", f"*{VERSION}*"]
+    lines += ["", f"*{DISCLAIMER}*"]
     return "\n".join(lines)
 
 
