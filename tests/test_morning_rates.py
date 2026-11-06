@@ -552,3 +552,58 @@ def test_save_csv_writes_a_dated_file(sources, tmp_path, monkeypatch):
     morning_rates.save_csv()
     text = (tmp_path / "morning-sheet-2026-10-09.csv").read_text(encoding="utf-8-sig")
     assert "9.26%" in text
+
+
+# --- Figures older than usual, and who to tell ----------------------------------
+
+
+def test_figures_of_a_normal_age_carry_no_warning(sources):
+    result = sheet()
+    assert not any("late" in figure for section in result["sections"] for figure in section.get("figures", []))
+    assert "Older than usual" not in result["table"]
+
+
+@pytest.mark.parametrize(
+    "today, title, age",
+    [
+        (date(2026, 11, 15), TITLES[0], 76),  # August's inflation, from 31 Aug
+        (date(2026, 10, 24), TITLES[3], 22),  # AWPR for the week ending 2 Oct
+        (date(2026, 10, 24), TITLES[4], 17),  # the auction of 7 Oct
+    ],
+)
+def test_a_figure_older_than_usual_is_shown_but_flagged(sources, monkeypatch, today, title, age):
+    monkeypatch.setattr(morning_rates, "today_in_sri_lanka", lambda: today)
+    section = sheet()["by_title"][title]
+    for figure in section["figures"]:
+        assert figure["value"] is not None  # still the source's latest, so still shown
+        assert figure["late"].startswith("Older than usual:")
+        assert f"this one is {age} days old" in figure["late"]
+
+
+def test_one_day_younger_is_not_flagged(sources, monkeypatch):
+    monkeypatch.setattr(morning_rates, "today_in_sri_lanka", lambda: date(2026, 10, 23))
+    by_title = sheet()["by_title"]
+    assert "late" not in by_title[TITLES[3]]["figures"][0]  # 21 days: the usual limit
+    assert "late" not in by_title[TITLES[4]]["figures"][0]  # 16 days: the usual limit
+
+
+def test_the_warning_is_numbered_once_in_the_table(sources, monkeypatch):
+    monkeypatch.setattr(morning_rates, "today_in_sri_lanka", lambda: date(2026, 11, 15))
+    table = sheet()["table"]
+    assert f"| {NCPI}: Headline Inflation (Y-o-Y) | 8.10% | Aug 2026 ⚠ (note 1) |" in table
+    assert f"| {NCPI}: Core Inflation (Y-o-Y) | 6.30% | Aug 2026 ⚠ (note 1) |" in table
+    assert table.count("Older than usual: a month's inflation figure") == 1
+
+
+def test_a_changed_page_asks_the_reader_to_tell_whoever_looks_after_the_tool(sources):
+    sources[inflation.TABLE_URL] = sources[inflation.TABLE_URL].replace(">Core Inflation<", ">Underlying Inflation<")
+    section = sheet()["by_title"][TITLES[0]]
+    assert section["not_available"].endswith("Please tell the person who looks after this tool for your team.")
+
+
+def test_a_site_that_is_down_does_not_ask_anyone_to_fix_the_tool(sources, monkeypatch):
+    def down(report_id, start, end):
+        raise SourceUnavailable("CBSL's Data Library did not answer after two tries.")
+
+    monkeypatch.setattr(data_library, "search", down)
+    assert sheet()["by_title"][TITLES[3]]["not_available"] == "CBSL's Data Library did not answer after two tries."

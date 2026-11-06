@@ -16,7 +16,8 @@ go on to be used at work:
 - Every title, heading and label is the source's own wording, and is checked
   against the page each time. Nothing is renamed.
 - Every figure has its own date, and says what that date means. Nothing is
-  averaged, converted or estimated.
+  averaged, converted or estimated. A figure older than its source normally
+  lets it get is flagged, in case the source has stopped updating.
 - Each section stands alone. If a source cannot be reached, or its page no
   longer reads the way this code expects, that section says why and shows no
   figures. The other sections are unaffected.
@@ -27,6 +28,7 @@ go on to be used at work:
   for them for up to FOLLOW_UP_SECONDS.
 """
 
+import calendar
 import csv
 import io
 import logging
@@ -79,6 +81,31 @@ def _day(day: date) -> str:
     return f"{day.day} {day:%b %Y}"
 
 
+# How old each kind of figure normally gets before its source publishes the
+# next one, in days. Older than this, the figure is still shown (it is still
+# the source's latest) but flagged: the source may have stopped updating, as
+# CBSL's Treasury bill data did in July 2026, and an old figure must not pass
+# for a current one.
+USUALLY_AT_MOST_DAYS = {
+    "month": 75,  # counted from the month's last day: a month is published within about seven weeks
+    "week": 21,  # counted from the week's end: AWPR for a week is out by the following Monday
+    "auction": 16,  # Treasury bill auctions are weekly; a holiday week can add a few days
+}
+LOOKS_AFTER = "Please tell the person who looks after this tool for your team."
+
+
+def _late(day: date, kind: str, what: str) -> str | None:
+    """A warning if a figure dated `day` is older than its kind usually gets, else None."""
+    age, limit = (today_in_sri_lanka() - day).days, USUALLY_AT_MOST_DAYS[kind]
+    if age <= limit:
+        return None
+    return (
+        f"Older than usual: {what} is normally no more than {limit} days old, and this one "
+        f"is {age} days old. The source may have stopped updating, so check it before using "
+        f"this figure. If this lasts more than a few days: {LOOKS_AFTER.lower()}"
+    )
+
+
 # --- Inflation ------------------------------------------------------------
 
 INDEXES = ["Colombo Consumer Price Index (CCPI)", "National Consumer Price Index (NCPI)"]
@@ -119,13 +146,19 @@ def _inflation() -> dict:
         latest = max(published) if published else None
         value = table[latest][measure] if latest else None
         month = datetime.strptime(latest, "%Y-%m") if latest else None
-        figures.append({
+        figure = {
             "label": label,
             "value": value,
             "date": latest,
             "shown": f"{value:.2f}%" if latest else "—",
             "for": f"{month:%b %Y}" if latest else "none published",
-        })  # fmt: skip
+        }
+        if month:
+            last_day = date(month.year, month.month, calendar.monthrange(month.year, month.month)[1])
+            late = _late(last_day, "month", "a month's inflation figure, counted from the month's end,")
+            if late:
+                figure["late"] = late
+        figures.append(figure)
     return {
         "dates_are": "the month the inflation figure measures",
         "unit": "percent",
@@ -216,6 +249,9 @@ def _prime_lending_rate() -> dict:
         "shown": f"{rate:.2f}%",
         "for": f"week ending {_day(day)}",
     }
+    late = _late(day, "week", "the weekly AWPR, counted from the week's end,")
+    if late:
+        figure["late"] = late
     return {
         "dates_are": f"the week ending on that day (CBSL's '{groups[0]}' column)",
         "unit": "percent per year",
@@ -275,6 +311,10 @@ def _treasury_bills() -> dict:
         }
         if reason:
             figure["not_shown_because"] = reason
+        else:
+            late = _late(held_on, "auction", "a Treasury bill auction, counted from the day it was held,")
+            if late:
+                figure["late"] = late
         figures.append(figure)
     section = {
         "report_title": result.title,
@@ -396,8 +436,9 @@ def render(sections: list[dict], today: date, prepared: str) -> str:
     notes: list[str] = []
 
     def note(text: str) -> str:
-        notes.append(text)
-        return f"note {len(notes)}"
+        if text not in notes:  # the same message is numbered once, however many rows use it
+            notes.append(text)
+        return f"note {notes.index(text) + 1}"
 
     shown_group = None
     for section in sections:
@@ -417,9 +458,10 @@ def render(sections: list[dict], today: date, prepared: str) -> str:
         flag = f" ⚠ ({note(section['note'])})" if "note" in section else ""
         for figure in section["figures"]:
             why = f" ({note(figure['not_shown_because'])})" if "not_shown_because" in figure else ""
+            late = f" ⚠ ({note(figure['late'])})" if "late" in figure else ""
             lines.append(
                 f"| {group} | {_cell(figure['label'])} | {_cell(figure['shown'])}{why} "
-                f"| {_cell(figure['for'])}{flag} | {source} |"
+                f"| {_cell(figure['for'])}{flag}{late} | {source} |"
             )
             group = ""
     for item in NOT_SHOWN:
@@ -496,6 +538,8 @@ def get_morning_rates() -> dict:
                 entry.update(future.result())  # a bug in this project's own code is raised here
             except ExpectedProblem as problem:
                 entry["not_available"] = str(problem)
+                if isinstance(problem, PageChanged):  # only someone who looks after the tool can fix this
+                    entry["not_available"] += f" {LOOKS_AFTER}"
         sections.append(entry)
     today = today_in_sri_lanka()
     prepared = datetime.now(SRI_LANKA_TIME).strftime("%H:%M")
@@ -532,7 +576,7 @@ def csv_text(sheet: dict) -> str:
             continue
         notes = [section.get("cross_check"), section.get("note")]
         for figure in section["figures"]:
-            note = " ".join(text for text in notes + [figure.get("not_shown_because")] if text)
+            note = " ".join(text for text in notes + [figure.get("late"), figure.get("not_shown_because")] if text)
             writer.writerow([section["group"], figure["label"], figure["shown"], figure["for"], source, section["source_url"], note])
     for item in NOT_SHOWN:
         writer.writerow([item["item"].split(" (")[0], item["in_short"], "", "", "", "", ""])

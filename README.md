@@ -29,7 +29,8 @@ Every call fetches fresh data from the source, and every answer says where each 
 How the sheet keeps its figures trustworthy:
 
 - **The source's own words.** Every label is the source's own, checked against the page each time. If a source renames or moves a column, that section is left out with the reason instead of being misread.
-- **A date on every figure,** saying what the date means: the month measured, the day the rate is for, the week ending, or the auction date. Daily rates that are not today's are flagged.
+- **A date on every figure,** saying what the date means: the month measured, the day the rate is for, the week ending, or the auction date. Daily rates that are not today's are flagged, and so is any figure older than its source normally lets it get (a sign the source may have stopped updating).
+- **A changed page is never misread.** If a source changes its layout, that row says so and asks the reader to tell whoever looks after the tool.
 - **Nothing worked out.** Nothing is averaged, converted or estimated.
 - **No Treasury bill rate without a double check.** A rate appears only when two Ministry documents agree on it: the auction result and the daily report. If the daily report cannot be read, no rate is shown. In the few hours each week when a new result is out but no daily report covers it yet, the sheet shows the auction before, which both confirm, dated by that auction.
 - **Each section stands alone.** A source that is down blanks only its own row.
