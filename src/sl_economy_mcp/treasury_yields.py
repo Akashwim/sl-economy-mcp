@@ -46,10 +46,13 @@ LINK_TEXT = "Daily Summary Report"
 SHEET = "Summary Statistics"
 
 # Answers normally take 1 to 12 seconds. On 16 Oct 2026 a page hung for 71 seconds
-# and then answered in 4 on the retry, so give up early and let the retry run
-# within the Morning Sheet's 45-second limit.
+# and then answered in 4 on the retry, so give up early and try again.
 TIMEOUT_SECONDS = 20
-RETRY_AFTER_SECONDS = 5  # the site has answered "HTTP 502" and then worked on the next try
+# The site builds a page the first time it is asked for after a quiet spell:
+# on 19 Oct 2026 such pages took 6 to 30 seconds the first time and about 1
+# second the next. While it builds, it can also answer "HTTP 502". So the
+# second try waits long enough for the page to be ready.
+RETRY_AFTER_SECONDS = 10
 PAGE_CACHE_SECONDS = 5 * 60
 FILE_CACHE_SECONDS = 60 * 60  # a new or amended report gets a new address, so a file never changes
 

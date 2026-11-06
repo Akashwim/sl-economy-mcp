@@ -7,6 +7,8 @@ which tool to use and how to call it.
 """
 
 import functools
+import logging
+import sys
 from typing import Annotated, Literal
 
 from mcp.server.mcpserver import MCPServer
@@ -24,7 +26,8 @@ INSTRUCTIONS = (
     "on. Never estimate, fill a gap from memory, or present a figure as today's "
     "when its date is earlier. If a tool says a figure is missing, say so plainly. "
     "For the morning rates sheet use get_morning_rates and show the sheet exactly "
-    "as it is returned."
+    "as it is returned. If its data says check_again is true, call get_morning_rates "
+    "once more straight away and show that new sheet the same way."
 )
 
 mcp = MCPServer(
@@ -69,14 +72,21 @@ def get_morning_rates() -> list:
     Ministry of Finance's Public Debt Management Office: NCPI headline and
     core inflation, the USD/LKR indicative rate, the banks' USD buying and
     selling rates, the weekly prime lending rate (AWPR), and the 91, 182 and
-    364-day Treasury bill rates from the latest auction, checked against the
-    Ministry's daily report. Every figure has the source's own label, the
-    date it is for and a link to its source. Takes up to about 45 seconds.
+    364-day Treasury bill rates of the latest auction that the Ministry's daily
+    report confirms (no bill rate is shown without that check). Every figure
+    has the source's own label, the date it is for and a link to its source.
+    Takes up to about 45 seconds.
 
     The answer has two parts. The first is the finished sheet: show it
     exactly as it is, notes and all, and do not rebuild, reorder, shorten or
     add to it, or fill a gap from another tool. The second part holds the same
     figures as data; use it only to answer questions about a figure.
+
+    If a website was slow, a section says "Loading" and the data part has
+    "check_again": true. Then call this tool once more, straight away, and show
+    the new sheet exactly as it is returned. It waits for the downloads already
+    under way, up to 30 seconds. Do this once only: if check_again is false,
+    do not call again.
     """
     sheet = morning_rates.get_morning_rates()
     return [sheet["table"], {key: value for key, value in sheet.items() if key != "table"}]
@@ -230,6 +240,15 @@ def macro_briefing() -> str:
 
 
 def main() -> None:
+    # Our own log lines (how long each download took) go to stderr, the usual
+    # place for a server's own messages, which apps such as Claude's keep in
+    # their log for this server. Never to stdout: that carries the protocol.
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(logging.Formatter("%(asctime)s sl-economy: %(message)s"))
+    ours = logging.getLogger("sl_economy_mcp")
+    ours.addHandler(handler)
+    ours.setLevel(logging.INFO)
+    ours.propagate = False
     mcp.run()
 
 

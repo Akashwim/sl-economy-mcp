@@ -4,9 +4,11 @@ Every tool goes through here so that they all behave the same way:
 - we identify ourselves honestly with a User-Agent,
 - we keep each page for a few minutes so repeated questions don't hammer the
   website they came from,
-- network problems become one clear, readable error.
+- network problems become one clear, readable error,
+- every download is timed in the log, so a slow website can be named.
 """
 
+import logging
 import time
 import urllib.error
 import urllib.parse
@@ -22,6 +24,10 @@ USER_AGENT = f"sl-economy-mcp/{__version__} (unofficial open-source MCP server)"
 TIMEOUT_SECONDS = 20
 CACHE_SECONDS = 5 * 60
 MAX_BYTES = 20_000_000  # the largest real download is about 0.6 MB; anything far bigger is wrong
+
+# Written to the error channel (stderr), never to the one the assistant reads.
+# The server switches it on (server.main); used as a library, it stays quiet.
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -65,8 +71,20 @@ def download(
 
     Pass `form` to submit a search form (an HTTP POST) instead of simply
     opening the page, and `session` when the site needs its cookies back.
-    `site` is the website's name, used in the error messages.
+    `site` is the website's name, used in the error messages and the log.
     """
+    started = time.monotonic()
+    try:
+        page = _download(url, form, session, timeout, site)
+    except SourceUnavailable as problem:
+        reason = problem.__cause__ or "too large"
+        log.info("%s: failed after %.1f s (%s): %s", site, time.monotonic() - started, reason, url)
+        raise
+    log.info("%s: %.1f s, %d KB: %s", site, time.monotonic() - started, len(page.body) // 1000, url)
+    return page
+
+
+def _download(url: str, form: dict | None, session, timeout: int, site: str) -> Page:
     data = urllib.parse.urlencode(form).encode() if form else None
     request = urllib.request.Request(url, data=data, headers={"User-Agent": USER_AGENT})
     open_url = session.open if session else urllib.request.urlopen

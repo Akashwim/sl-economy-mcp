@@ -96,10 +96,10 @@ def check_bill_auctions():
     assert set(result.rows) == set(bill_auctions.TENORS), result.rows
     # The auction result and the Ministry's daily report must agree.
     listed_on, summary, _ = treasury_yields.latest_summary()
-    problems, said = bill_auctions.cross_check(result, previous, summary, f"the daily report of {listed_on}")
-    assert not problems and said.startswith("Checked"), (problems, said)
+    compared, problems, said = bill_auctions.cross_check(result, previous, summary, f"the daily report of {listed_on}")
+    assert compared and not problems and said.startswith("Checked"), (compared, problems, said)
     rates = ", ".join(f"{days} days {row[1]}%" for days, row in sorted(result.rows.items()))
-    return f"auction of {result.held_on}: {rates}, agreeing with the daily report"
+    return f"auction of {result.held_on}: {rates}, the daily report agreeing with its '{compared}' column"
 
 
 def check_morning_rates():

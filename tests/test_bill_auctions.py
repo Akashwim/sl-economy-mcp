@@ -210,7 +210,8 @@ def daily(trades_on: date, rates: list[float]) -> Summary:
 
 
 def test_a_report_after_the_auction_must_show_its_rates():
-    problems, said = bill_auctions.cross_check(RESULT, date(2026, 10, 7), daily(HELD_ON, [9.30, 9.44, 9.95]), "the report")
+    compared, problems, said = bill_auctions.cross_check(RESULT, date(2026, 10, 7), daily(HELD_ON, [9.30, 9.44, 9.95]), "the report")
+    assert compared == "Current Auction"
     assert problems == {}
     assert "agree" in said and "'Current Auction'" in said
 
@@ -218,22 +219,23 @@ def test_a_report_after_the_auction_must_show_its_rates():
 def test_a_report_from_before_the_auction_must_show_the_last_auctions_rates():
     # On auction day the result is out before the next daily report, which
     # still shows the week before's rates: the result's "Last Auction" column.
-    problems, said = bill_auctions.cross_check(RESULT, date(2026, 10, 7), daily(date(2026, 10, 13), [9.26, 9.44, 9.95]), "the report")
+    compared, problems, said = bill_auctions.cross_check(RESULT, date(2026, 10, 7), daily(date(2026, 10, 13), [9.26, 9.44, 9.95]), "the report")
+    assert compared == "Last Auction"  # only last week's rates are confirmed
     assert problems == {}
     assert "'Last Auction'" in said
 
 
 def test_a_disagreement_names_both_figures():
-    problems, said = bill_auctions.cross_check(RESULT, date(2026, 10, 7), daily(HELD_ON, [9.30, 9.45, 9.95]), "the report")
+    _, problems, said = bill_auctions.cross_check(RESULT, date(2026, 10, 7), daily(HELD_ON, [9.30, 9.45, 9.95]), "the report")
     assert list(problems) == [182]
     assert "is 9.44%, but the report shows 9.45%" in problems[182]
     assert "disagreements" in said
 
 
 def test_a_report_older_than_the_last_two_auctions_cannot_confirm_anything():
-    problems, said = bill_auctions.cross_check(RESULT, date(2026, 10, 7), daily(date(2026, 10, 1), [1.0, 1.0, 1.0]), "the report")
-    assert problems == {}
-    assert said.startswith("Not cross-checked")
+    compared, problems, said = bill_auctions.cross_check(RESULT, date(2026, 10, 7), daily(date(2026, 10, 1), [1.0, 1.0, 1.0]), "the report")
+    assert compared is None and problems == {}
+    assert said == "the report is for trading on 2026-10-01, before the last two auctions, so it cannot confirm any of their rates."
 
 
 def test_english_split_across_two_links_is_still_english():
@@ -259,12 +261,12 @@ def test_headings_without_readable_rows_are_refused():
 
 
 def test_a_dash_in_the_daily_report_is_reported_as_no_figure():
-    problems, _ = bill_auctions.cross_check(RESULT, date(2026, 10, 7), daily(HELD_ON, [9.30, None, 9.95]), "the report")
+    _, problems, _ = bill_auctions.cross_check(RESULT, date(2026, 10, 7), daily(HELD_ON, [9.30, None, 9.95]), "the report")
     assert "the report shows no figure" in problems[182]
 
 
 def test_a_bill_with_no_rate_to_compare_is_named_not_counted_as_agreeing():
     no_last = Result(HELD_ON, RESULT.title, {**RESULT.rows, 182: ("LKA18227D167", "9.44", "-")})
-    problems, said = bill_auctions.cross_check(no_last, date(2026, 10, 7), daily(date(2026, 10, 13), [9.26, 9.44, 9.95]), "the report")
+    _, problems, said = bill_auctions.cross_check(no_last, date(2026, 10, 7), daily(date(2026, 10, 13), [9.26, 9.44, 9.95]), "the report")
     assert problems == {}
     assert said.endswith("Not compared, because the result shows no rate to compare: 182 days.")

@@ -30,8 +30,10 @@ How the sheet keeps its figures trustworthy:
 
 - **The source's own words.** Every label is the source's own, checked against the page each time. If a source renames or moves a column, that section is left out with the reason instead of being misread.
 - **A date on every figure,** saying what the date means: the month measured, the day the rate is for, the week ending, or the auction date. Daily rates that are not today's are flagged.
-- **Nothing worked out.** Nothing is averaged, converted or estimated. A Treasury bill rate appears only when two official documents agree: the auction result and the Ministry's daily report.
-- **Each section stands alone.** A source that is down, or slower than 45 seconds, blanks only its own row.
+- **Nothing worked out.** Nothing is averaged, converted or estimated.
+- **No Treasury bill rate without a double check.** A rate appears only when two Ministry documents agree on it: the auction result and the daily report. If the daily report cannot be read, no rate is shown. In the few hours each week when a new result is out but no daily report covers it yet, the sheet shows the auction before, which both confirm, dated by that auction.
+- **Each section stands alone.** A source that is down blanks only its own row.
+- **Slow sites say "Loading".** A section not read within 45 seconds says "Loading, up to 30 seconds" and shows no figures. Its downloads carry on, and the assistant is told to look once more, which waits for them and shows the finished sheet.
 
 The answer comes in two parts: the finished sheet, which the assistant shows as it is, and the same figures as data for follow-up questions.
 
@@ -142,7 +144,8 @@ Design choices:
 - **Live, not stored.** Nothing is saved between runs. A short cache stops repeated questions from hitting the sources again and again: 5 minutes for most pages, an hour for CBSL's slow Data Library tables and for the Ministry's report files, since a new or amended report is published as a new file.
 - **Three outside dependencies:** the official MCP Python SDK, `xlrd` to read the Ministry's old-format Excel report, and `pypdf` to read the auction results. Downloading and reading pages uses Python's standard library.
 - **Fail loudly.** If a page or file changes shape, the tool says so. It never guesses a number.
-- **Two documents must agree.** Treasury bill rates are read from the auction results and shown only if the Ministry's daily report carries the same rates.
+- **Two documents must agree.** Treasury bill rates are read from the auction results and shown only if the Ministry's daily report carries the same rates. The two are downloaded side by side.
+- **Timed.** Every download is timed in the server's log (stderr, never the channel the assistant reads), so a slow website can be named.
 - **As the source shows it.** The Ministry's Excel report stores more decimal places than it displays, so figures read from it are rounded the way Excel displays them. This was checked by eye in Excel.
 - **Honest about gaps.** Where data is missing, late or running behind, the answer says so.
 - **Read only what is needed.** CBSL's tables contain the odd typo. A bad cell in a column the tool does not use is ignored; a bad cell in one it does use is an error.

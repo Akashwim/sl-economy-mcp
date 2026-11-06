@@ -20,13 +20,21 @@ go on to be used at work:
 - Each section stands alone. If a source cannot be reached, or its page no
   longer reads the way this code expects, that section says why and shows no
   figures. The other sections are unaffected.
+- A Treasury bill rate is shown only when two Ministry documents agree on it:
+  the auction result and the daily report. Without that check, none is shown.
+- A section whose website is slow says "Loading" and shows no figures. Its
+  downloads carry on, and the assistant is asked to look again, which waits
+  for them for up to FOLLOW_UP_SECONDS.
 """
 
 import csv
 import io
+import logging
 import sys
+import threading
+import time
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor, wait
+from concurrent.futures import Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
@@ -40,6 +48,9 @@ CBSL = "Central Bank of Sri Lanka"
 PDMO = "Public Debt Management Office, Ministry of Finance"
 SHORT_NAMES = {CBSL: "CBSL", f"{CBSL}, Data Library": "CBSL Data Library", PDMO: "Ministry of Finance (PDMO)"}
 SHEET_DEADLINE_SECONDS = 45  # the whole sheet answers within this, even if one source hangs
+FOLLOW_UP_SECONDS = 30  # the most a second look waits for a section still loading; the sheet says so
+
+log = logging.getLogger(__name__)
 
 DISCLAIMER = (
     "Unofficial tool, not affiliated with the Central Bank of Sri Lanka or the "
@@ -217,46 +228,72 @@ def _prime_lending_rate() -> dict:
 
 
 def _treasury_bills() -> dict:
+    # The auction result and the daily report that confirms it do not depend on
+    # each other, so they are read side by side: the section takes as long as
+    # the slower of the two, not both added together.
+    helper = ThreadPoolExecutor(max_workers=1)
+    confirming = helper.submit(treasury_yields.latest_summary)
+    helper.shutdown(wait=False)
     result, file_url, page, previous = bill_auctions.latest_result()
-    daily_url = None
     try:
-        listed_on, summary, daily = treasury_yields.latest_summary()
-        daily_url = daily.url
-        report = f"the Ministry's Daily Summary Report listed on {_day(listed_on)}"
-        problems, check = bill_auctions.cross_check(result, previous, summary, report)
+        listed_on, summary, daily = confirming.result()
     except ExpectedProblem as problem:
-        problems, check = {}, f"Not cross-checked today, because the daily report could not be read: {problem}"
+        # No rate without the check. The same kind of problem is raised, so a
+        # site that is down still counts as down rather than as a changed page.
+        raise type(problem)(
+            "The Treasury bill auction rates are not shown, because the Ministry's daily "
+            f"report, which must confirm them, could not be read. {problem}"
+        ) from problem
+    report = f"the Ministry's Daily Summary Report listed on {_day(listed_on)}"
+    compared, problems, check = bill_auctions.cross_check(result, previous, summary, report)
+    if compared is None:
+        raise NoData(f"The Treasury bill auction rates are not shown, because {check}")
 
+    # Only the column the daily report confirmed is shown. Until a daily report
+    # covers the newest auction, that is the result's "Last Auction" column:
+    # the rates of the auction before, dated by that auction.
+    newest = compared == "Current Auction"
+    held_on = result.held_on if newest else previous
+    position = 1 if newest else 2  # in each row: ISIN, Current Auction, Last Auction
     figures = []
     for days in bill_auctions.TENORS:
-        isin, current, _ = result.rows.get(days, (None, None, None))
-        if current is None:
+        row = result.rows.get(days)
+        printed = row[position] if row else None
+        if printed is None:
             reason = f"The results table has no row for {days} days."
-        elif not bill_auctions.RATE.fullmatch(current):
-            reason = f"The results table shows '{current}' for {days} days, not a rate."
+        elif not bill_auctions.RATE.fullmatch(printed):
+            reason = f"The results table shows '{printed}' for {days} days in its '{compared}' column, not a rate."
         else:
             reason = problems.get(days)
         figure = {
             "label": f"{days} days",
-            "isin": isin,
-            "value": None if reason else float(current),
-            "date": result.held_on.isoformat(),
-            "shown": "—" if reason else f"{current}%",
-            "for": f"auction of {_day(result.held_on)}",
+            "isin": row[0] if row and newest else None,  # the ISINs printed are this week's bills
+            "value": None if reason else float(printed),
+            "date": held_on.isoformat(),
+            "shown": "—" if reason else f"{printed}%",
+            "for": f"auction of {_day(held_on)}",
         }
         if reason:
             figure["not_shown_because"] = reason
         figures.append(figure)
-    return {
+    section = {
         "report_title": result.title,
         "file_url": file_url,
-        "figures_are": "Weighted Average Yield Rate (WAYR) (%), Current Auction",
+        "figures_are": f"Weighted Average Yield Rate (WAYR) (%), {compared}",
         "dates_are": "the day the auction was held",
         "cross_check": check,
-        "daily_report_url": daily_url,
+        "daily_report_url": daily.url,
         "figures": figures,
         **page.stamp(),
     }
+    if not newest:
+        section["note"] = (
+            f"The auction of {_day(result.held_on)} has results, but no daily report confirms "
+            f"them yet, so these are the rates of the auction before it, {_day(previous)}, "
+            "which the daily report confirms. The newer rates will appear once a daily "
+            "report covers them."
+        )
+    return section
 
 
 # --- The sheet --------------------------------------------------------------
@@ -370,10 +407,14 @@ def render(sections: list[dict], today: date, prepared: str) -> str:
         if "not_available" in section:
             lines.append(f"| {group} | Not available just now ({note(section['not_available'])}) | — | — | {source} |")
             continue
-        flag = f" ⚠ ({note(section['note'])})" if "note" in section else ""
+        if "loading" in section:
+            wait_at_most = f"up to {FOLLOW_UP_SECONDS} seconds"
+            lines.append(f"| {group} | Loading, {wait_at_most} ({note(section['loading'])}) | — | — | {source} |")
+            continue
         if "cross_check" in section:
             checked = f"Figures are the '{section['figures_are']}' column. {section['cross_check']}"
             group += f" ({note(checked)})"
+        flag = f" ⚠ ({note(section['note'])})" if "note" in section else ""
         for figure in section["figures"]:
             why = f" ({note(figure['not_shown_because'])})" if "not_shown_because" in figure else ""
             lines.append(
@@ -390,31 +431,66 @@ def render(sections: list[dict], today: date, prepared: str) -> str:
     return "\n".join(lines)
 
 
+def _read(section: Section) -> dict:
+    """One section's figures, with the time it took in the log."""
+    started = time.monotonic()
+    try:
+        return section.read()
+    finally:
+        log.info("%s: section read in %.1f s", section.title, time.monotonic() - started)
+
+
+# Sections still being read when an earlier sheet was handed over, by title.
+# A second look waits for these instead of starting the downloads again.
+_reading: dict[str, Future] = {}
+_reading_lock = threading.Lock()
+
+
 def get_morning_rates() -> dict:
     # Every source is read at the same time, so the sheet takes as long as the
     # slowest one, and a source that hangs cannot hold up the others: after
-    # the deadline its section says so and the rest of the sheet is shown.
+    # the deadline the rest of the sheet is handed over, and the slow section
+    # says it is still loading. Its downloads carry on, and "check_again" asks
+    # the assistant for a second look, which waits for them (up to
+    # FOLLOW_UP_SECONDS) rather than starting them again.
     pool = ThreadPoolExecutor(max_workers=len(SECTIONS))
     try:
-        futures = [pool.submit(section.read) for section in SECTIONS]
-        wait(futures, timeout=SHEET_DEADLINE_SECONDS)
+        with _reading_lock:
+            futures, second_look = [], []
+            for section in SECTIONS:
+                earlier = _reading.get(section.title)
+                if earlier is not None and not earlier.done():
+                    futures.append(earlier)
+                    second_look.append(True)
+                else:
+                    _reading[section.title] = pool.submit(_read, section)
+                    futures.append(_reading[section.title])
+                    second_look.append(False)
+        wait(futures, timeout=FOLLOW_UP_SECONDS if any(second_look) else SHEET_DEADLINE_SECONDS)
     finally:
         pool.shutdown(wait=False, cancel_futures=True)
 
-    sections = []
-    for section, future in zip(SECTIONS, futures):
+    sections, check_again = [], False
+    for section, future, again in zip(SECTIONS, futures, second_look):
         entry = {
             "group": section.group,
             "title": section.title,
             "publisher": section.publisher,
             "source_url": section.source_url,
         }
-        if not future.done():
+        site = SHORT_NAMES[section.publisher]
+        if not future.done() and again:
             entry["not_available"] = (
-                f"{SHORT_NAMES[section.publisher]} did not answer within "
-                f"{SHEET_DEADLINE_SECONDS} seconds, so this section was left out. "
-                "Try again in a few minutes."
+                f"Still loading: the {site} website has still not answered. Please ask for "
+                "the sheet again in a few minutes."
             )
+        elif not future.done():
+            entry["loading"] = (
+                f"Loading: the {site} website is slow to respond. The assistant will look "
+                f"again automatically and show the finished sheet; this takes up to "
+                f"{FOLLOW_UP_SECONDS} seconds. No figure is shown until it has been read and checked."
+            )
+            check_again = True
         else:
             try:
                 entry.update(future.result())  # a bug in this project's own code is raised here
@@ -427,6 +503,7 @@ def get_morning_rates() -> dict:
         "sheet": "Morning Sheet",
         "date": today.isoformat(),
         "prepared_at_sri_lanka": prepared,
+        "check_again": check_again,
         "table": render(sections, today, prepared),
         "sections": sections,
         "not_shown": NOT_SHOWN,
@@ -450,7 +527,10 @@ def csv_text(sheet: dict) -> str:
         if "not_available" in section:
             writer.writerow([section["group"], "Not available", "", "", source, section["source_url"], section["not_available"]])
             continue
-        notes = [section.get("note"), section.get("cross_check")]
+        if "loading" in section:
+            writer.writerow([section["group"], "Loading", "", "", source, section["source_url"], section["loading"]])
+            continue
+        notes = [section.get("cross_check"), section.get("note")]
         for figure in section["figures"]:
             note = " ".join(text for text in notes + [figure.get("not_shown_because")] if text)
             writer.writerow([section["group"], figure["label"], figure["shown"], figure["for"], source, section["source_url"], note])
@@ -464,6 +544,8 @@ def csv_text(sheet: dict) -> str:
 def save_csv() -> None:
     """The `sl-economy-sheet` command: save today's sheet as morning-sheet-<date>.csv."""
     sheet = get_morning_rates()
+    if sheet["check_again"]:
+        sheet = get_morning_rates()  # the second look an assistant would take
     path = f"morning-sheet-{sheet['date']}.csv"
     # utf-8-sig lets Excel read the dashes and other characters correctly.
     with open(path, "w", newline="", encoding="utf-8-sig") as file:

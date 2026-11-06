@@ -5,6 +5,11 @@ Every source is replaced by a saved copy of its real page: the CBSL pages of
 bill results page of 16 October (newest auction: 14 October). "Today" is
 fixed at 9 October 2026, the day the CBSL pages were saved, unless a test
 says otherwise.
+
+The saved daily report (trading on 12 October) is from before the newest
+auction, so by default the sheet shows the auction before it, 7 October,
+which that report confirms. `confirmed_by_a_later_report` supplies one that
+covers the newest auction.
 """
 
 from datetime import date, datetime, timezone
@@ -32,11 +37,28 @@ TITLES = [
 ]
 BILL_RESULTS = FILE_STORE + "e2e42399-1bd0-4e24-86ef-2f6bfaaf275c"
 BILL_PHASE_II = FILE_STORE + "96a04677-bbfc-4848-a833-a2b22864f0af"
+DAILY_LABELS = ["< 91 Days", "< 182 Days", "< 364 Days"]
 BONDS = "To be developed with the primary dealer. Until then, please refer to the primary dealer's information."
 
 
 def saved(name: str) -> str:
     return (FIXTURES / name).read_text(encoding="utf-8")
+
+
+@pytest.fixture(autouse=True)
+def nothing_still_loading():
+    """Each test starts with no section left loading by another test."""
+    morning_rates._reading.clear()
+    yield
+    morning_rates._reading.clear()
+
+
+def confirmed_by_a_later_report(monkeypatch, rates=(9.30, 9.44, 9.95)):
+    """A daily report for trading on 14 October, the newest auction's day, showing `rates`."""
+    rows = [("Treasury Bills", label, [rate] + [None] * 4) for label, rate in zip(DAILY_LABELS, rates)]
+    report = Summary(date(2026, 10, 14), date(2026, 10, 15), rows, None)
+    listed = (date(2026, 10, 15), report, Page(FILE_STORE + "report-15-oct", b"", FETCHED))
+    monkeypatch.setattr(treasury_yields, "latest_summary", lambda: listed)
 
 
 @pytest.fixture
@@ -142,7 +164,8 @@ def test_daily_rates_that_are_not_todays_say_so(sources, monkeypatch):
     for title in ("Daily Indicative Exchange Rates", "Daily Buy and Sell Exchange Rates"):
         assert by_title[title]["note"] == "The latest published rate is for 9 Oct 2026, not today (12 Oct 2026)."
     # Monthly, weekly and auction figures are never today's, so they carry no such note.
-    assert not any("note" in by_title[title] for title in (TITLES[0], TITLES[3], TITLES[4]))
+    assert not any("note" in by_title[title] for title in (TITLES[0], TITLES[3]))
+    assert "not today" not in by_title[TITLES[4]].get("note", "")
 
 
 def test_prime_lending_rate_is_the_latest_weekly_figure(sources):
@@ -153,7 +176,8 @@ def test_prime_lending_rate_is_the_latest_weekly_figure(sources):
     assert section["source_url"].endswith("ReportId=6277")
 
 
-def test_treasury_bills_are_the_latest_auction_rates_checked_against_the_daily_report(sources):
+def test_treasury_bills_are_the_newest_auction_rates_once_the_daily_report_confirms_them(sources, monkeypatch):
+    confirmed_by_a_later_report(monkeypatch)
     section = sheet()["by_title"]["Auction Result: Treasury Bills"]
     assert figures(section) == [
         ("91 days", 9.30, "2026-10-14"),
@@ -165,33 +189,107 @@ def test_treasury_bills_are_the_latest_auction_rates_checked_against_the_daily_r
     assert section["report_title"] == "TREASURY BILL AUCTION HELD ON 14 OCTOBER 2026"
     assert section["file_url"] == BILL_RESULTS
     assert section["figures_are"] == "Weighted Average Yield Rate (WAYR) (%), Current Auction"
-    # The saved daily report (trading on 12 October) is from before this auction,
-    # so it is compared with the result's "Last Auction" column.
+    assert section["cross_check"].startswith("Checked: the rates agree")
+    assert "listed on 15 Oct 2026" in section["cross_check"]
+    assert "'Current Auction' column" in section["cross_check"]
+    assert "note" not in section
+
+
+def test_until_a_daily_report_covers_the_newest_auction_the_one_before_is_shown(sources):
+    # The saved report trades on 12 October: it confirms the auction of 7 October
+    # (the result's "Last Auction" column), not the newer one of 14 October.
+    section = sheet()["by_title"]["Auction Result: Treasury Bills"]
+    assert figures(section) == [
+        ("91 days", 9.26, "2026-10-07"),
+        ("182 days", 9.44, "2026-10-07"),
+        ("364 days", 9.95, "2026-10-07"),
+    ]
+    assert shown(section)[0][1:] == ("9.26%", "auction of 7 Oct 2026")
+    assert [figure["isin"] for figure in section["figures"]] == [None, None, None]  # those printed are this week's
+    assert section["figures_are"] == "Weighted Average Yield Rate (WAYR) (%), Last Auction"
     assert section["cross_check"].startswith("Checked: the rates agree")
     assert "listed on 13 Oct 2026" in section["cross_check"]
+    assert section["note"].startswith("The auction of 14 Oct 2026 has results, but no daily report confirms them yet")
+    assert "the auction before it, 7 Oct 2026" in section["note"]
     assert section["daily_report_url"].startswith(FILE_STORE)
 
 
 def test_a_bill_rate_the_daily_report_disagrees_with_is_not_shown(sources, monkeypatch):
-    rows = [("Treasury Bills", "< 91 Days", [9.26] + [None] * 4),
-            ("Treasury Bills", "< 182 Days", [9.45] + [None] * 4),
-            ("Treasury Bills", "< 364 Days", [9.95] + [None] * 4)]  # fmt: skip
-    disagreeing = Summary(date(2026, 10, 12), date(2026, 10, 13), rows, None)
-    monkeypatch.setattr(treasury_yields, "latest_summary", lambda: (date(2026, 10, 13), disagreeing, Page("d", b"", FETCHED)))
+    confirmed_by_a_later_report(monkeypatch, rates=(9.30, 9.45, 9.95))
     section = sheet()["by_title"]["Auction Result: Treasury Bills"]
     assert [figure["value"] for figure in section["figures"]] == [9.30, None, 9.95]
     assert section["figures"][1]["shown"] == "—"
     assert "disagree" in section["figures"][1]["not_shown_because"]
 
 
-def test_bill_rates_still_show_if_the_daily_report_cannot_be_read(sources, monkeypatch):
+def test_last_weeks_rate_the_daily_report_disagrees_with_is_not_shown_either(sources, monkeypatch):
+    rows = [("Treasury Bills", label, [rate] + [None] * 4) for label, rate in zip(DAILY_LABELS, [9.26, 9.45, 9.95])]
+    disagreeing = Summary(date(2026, 10, 12), date(2026, 10, 13), rows, None)
+    monkeypatch.setattr(treasury_yields, "latest_summary", lambda: (date(2026, 10, 13), disagreeing, Page("d", b"", FETCHED)))
+    section = sheet()["by_title"]["Auction Result: Treasury Bills"]
+    assert [figure["value"] for figure in section["figures"]] == [9.26, None, 9.95]
+    assert "'Last Auction' rate for 182 days is 9.44%" in section["figures"][1]["not_shown_because"]
+
+
+def test_a_bill_with_no_rate_in_the_confirmed_column_is_not_shown(sources):
+    sources[BILL_RESULTS] = sources[BILL_RESULTS].replace("9.30 9.26", "9.30 -")
+    section = sheet()["by_title"]["Auction Result: Treasury Bills"]
+    assert section["figures"][0]["shown"] == "—"
+    assert section["figures"][0]["not_shown_because"] == (
+        "The results table shows '-' for 91 days in its 'Last Auction' column, not a rate."
+    )
+
+
+def test_no_bill_rate_is_shown_if_the_daily_report_cannot_be_read(sources, monkeypatch):
     def down():
         raise SourceUnavailable("Could not reach Sri Lanka's Ministry of Finance.")
 
     monkeypatch.setattr(treasury_yields, "latest_summary", down)
     section = sheet()["by_title"]["Auction Result: Treasury Bills"]
-    assert [figure["value"] for figure in section["figures"]] == [9.30, 9.44, 9.95]
-    assert section["cross_check"].startswith("Not cross-checked today")
+    assert "figures" not in section
+    assert section["not_available"] == (
+        "The Treasury bill auction rates are not shown, because the Ministry's daily report, "
+        "which must confirm them, could not be read. Could not reach Sri Lanka's Ministry of Finance."
+    )
+
+
+def test_a_site_that_is_down_still_counts_as_down_not_as_a_changed_page(sources, monkeypatch):
+    def down():
+        raise SourceUnavailable("Could not reach Sri Lanka's Ministry of Finance.")
+
+    monkeypatch.setattr(treasury_yields, "latest_summary", down)
+    with pytest.raises(SourceUnavailable):  # the live check counts this as "unreachable", not "broken"
+        morning_rates.SECTIONS[4].read()
+
+
+def test_no_bill_rate_is_shown_if_the_daily_report_is_older_than_both_auctions(sources, monkeypatch):
+    rows = [("Treasury Bills", label, [1.0] + [None] * 4) for label in DAILY_LABELS]
+    old = Summary(date(2026, 10, 1), date(2026, 10, 2), rows, None)
+    monkeypatch.setattr(treasury_yields, "latest_summary", lambda: (date(2026, 10, 2), old, Page("d", b"", FETCHED)))
+    section = sheet()["by_title"]["Auction Result: Treasury Bills"]
+    assert "figures" not in section
+    assert section["not_available"].startswith("The Treasury bill auction rates are not shown, because the Ministry's")
+    assert section["not_available"].endswith("before the last two auctions, so it cannot confirm any of their rates.")
+
+
+def test_the_auction_result_and_the_daily_report_are_read_side_by_side(sources, monkeypatch):
+    import threading
+
+    report_started = threading.Event()
+    read_report, read_result = treasury_yields.latest_summary, bill_auctions.latest_result
+
+    def report():
+        report_started.set()
+        return read_report()
+
+    def result():
+        # Read one after the other, the report would only start after this returns.
+        assert report_started.wait(timeout=2), "the daily report was not started alongside the result"
+        return read_result()
+
+    monkeypatch.setattr(treasury_yields, "latest_summary", report)
+    monkeypatch.setattr(bill_auctions, "latest_result", result)
+    assert sheet()["by_title"]["Auction Result: Treasury Bills"]["figures"]
 
 
 def test_bonds_and_the_fd_ceiling_are_listed_as_not_shown(sources):
@@ -213,10 +311,11 @@ def test_the_table_is_one_sheet_with_notes(sources):
     assert "| **US dollar** | 1 USD -> LKR | 330.9617 | 9 Oct 2026 |" in table
     assert "|  | Buy Rate (LKR) | 326.4384 | 9 Oct 2026 |" in table
     assert "| **Lending rate** | Average Weighted Prime Lending Rate (AWPR): Weekly | 11.04% | week ending 2 Oct 2026 |" in table
-    assert "| **Treasury bills** (note 1) | 91 days | 9.30% | auction of 14 Oct 2026 |" in table
+    assert "| **Treasury bills** (note 1) | 91 days | 9.26% | auction of 7 Oct 2026 ⚠ (note 2) |" in table
     assert f"| **Treasury bonds** | {BONDS} | — | — | — |" in table
     assert "| **FD ceiling rate** | Still in development. Until then, please refer to the team's existing source. |" in table
-    assert "\n1. Figures are the 'Weighted Average Yield Rate (WAYR) (%), Current Auction' column. Checked:" in table
+    assert "\n1. Figures are the 'Weighted Average Yield Rate (WAYR) (%), Last Auction' column. Checked:" in table
+    assert "\n2. The auction of 14 Oct 2026 has results, but no daily report confirms them yet" in table
     assert "[CBSL: Daily Indicative Exchange Rates](https://www.cbsl.gov.lk/" in table
     assert "[Ministry of Finance (PDMO): Auction Result: Treasury Bills](" in table
     assert table.rstrip().endswith(f"*{morning_rates.DISCLAIMER}*")
@@ -347,21 +446,84 @@ def test_reads_heading_cells():
     ]
 
 
-def test_a_source_that_hangs_only_blanks_its_own_section(sources, monkeypatch):
+def slow_bill_results(monkeypatch, seconds: float) -> list:
+    """Make the auction result take `seconds` to read. Lists each time it is read."""
     import time
 
-    def hangs(report_id, start, end):
-        time.sleep(1.0)
-        raise AssertionError("the sheet should not have waited for this")
+    reads, read_result = [], bill_auctions.latest_result
 
+    def slow():
+        reads.append(1)
+        time.sleep(seconds)
+        return read_result()
+
+    monkeypatch.setattr(bill_auctions, "latest_result", slow)
+    return reads
+
+
+def test_a_slow_section_says_loading_and_shows_the_rest_on_time(sources, monkeypatch):
+    import time
+
+    slow_bill_results(monkeypatch, 1.0)
     monkeypatch.setattr(morning_rates, "SHEET_DEADLINE_SECONDS", 0.3)
-    monkeypatch.setattr(data_library, "search", hangs)
     started = time.monotonic()
     result = sheet()
     assert time.monotonic() - started < 0.9  # did not wait for the slow source
-    lending = result["by_title"][TITLES[3]]
-    assert lending["not_available"].startswith("CBSL Data Library did not answer within 0.3 seconds")
-    assert sum("not_available" in section for section in result["sections"]) == 1
+    bills = result["by_title"][TITLES[4]]
+    assert "figures" not in bills and "not_available" not in bills
+    assert bills["loading"].startswith("Loading: the Ministry of Finance (PDMO) website is slow to respond.")
+    assert "this takes up to 30 seconds" in bills["loading"]
+    assert result["check_again"] is True
+    assert "| **Treasury bills** | Loading, up to 30 seconds (note 1) | — | — |" in result["table"]
+    others = [section for section in result["sections"] if section is not bills]
+    assert all("figures" in section for section in others)
+
+
+def test_the_second_look_waits_for_the_same_downloads_and_shows_checked_rates(sources, monkeypatch):
+    reads = slow_bill_results(monkeypatch, 0.5)
+    monkeypatch.setattr(morning_rates, "SHEET_DEADLINE_SECONDS", 0.1)
+    assert sheet()["check_again"] is True
+    second = sheet()  # the look the assistant is asked to take
+    assert second["check_again"] is False
+    bills = second["by_title"][TITLES[4]]
+    assert [figure["shown"] for figure in bills["figures"]] == ["9.26%", "9.44%", "9.95%"]
+    assert bills["cross_check"].startswith("Checked:")
+    assert reads == [1]  # read once: the second look did not start the downloads again
+
+
+def test_still_loading_on_the_second_look_asks_the_person_to_try_later(sources, monkeypatch):
+    slow_bill_results(monkeypatch, 1.0)
+    monkeypatch.setattr(morning_rates, "SHEET_DEADLINE_SECONDS", 0.1)
+    monkeypatch.setattr(morning_rates, "FOLLOW_UP_SECONDS", 0.1)
+    sheet()
+    second = sheet()
+    assert second["check_again"] is False  # one second look only, never a loop
+    bills = second["by_title"][TITLES[4]]
+    assert bills["not_available"].startswith("Still loading: the Ministry of Finance (PDMO) website has still not answered.")
+
+
+def test_a_finished_read_is_not_reused_by_the_next_sheet(sources, monkeypatch):
+    reads = slow_bill_results(monkeypatch, 0)
+    sheet()
+    sheet()
+    assert reads == [1, 1]  # each sheet reads afresh (from the few-minute cache)
+
+
+def test_the_saved_file_takes_the_second_look_itself(sources, tmp_path, monkeypatch):
+    slow_bill_results(monkeypatch, 0.5)
+    monkeypatch.setattr(morning_rates, "SHEET_DEADLINE_SECONDS", 0.1)
+    monkeypatch.chdir(tmp_path)
+    morning_rates.save_csv()
+    text = (tmp_path / "morning-sheet-2026-10-09.csv").read_text(encoding="utf-8-sig")
+    assert "9.26%" in text and "Loading" not in text
+
+
+def test_how_long_each_section_took_goes_to_the_log(sources, caplog):
+    import logging
+
+    with caplog.at_level(logging.INFO, logger="sl_economy_mcp"):
+        sheet()
+    assert any(line.startswith("Auction Result: Treasury Bills: section read in ") for line in caplog.messages)
 
 
 def test_a_vertical_bar_in_a_label_cannot_break_the_table(sources):
@@ -378,9 +540,9 @@ def test_the_sheet_as_a_csv_file(sources):
     assert rows[0][0].startswith("Morning Sheet: 2026-10-09")
     assert rows[1] == morning_rates.CSV_COLUMNS
     assert rows[2][:4] == ["Inflation", f"{NCPI}: Headline Inflation (Y-o-Y)", "8.10%", "Aug 2026"]
-    bill = next(row for row in rows if row[1:2] == ["91 days"])
-    assert bill[2:4] == ["9.30%", "auction of 14 Oct 2026"]  # as displayed, so Excel keeps 9.30, not 9.3
-    assert bill[6].startswith("Checked:")
+    bill = next(row for row in rows if row[1:2] == ["182 days"])
+    assert bill[2:4] == ["9.44%", "auction of 7 Oct 2026"]  # as displayed, so Excel keeps 9.40, not 9.4
+    assert bill[6].startswith("Checked:") and "no daily report confirms them yet" in bill[6]
     assert ["Treasury bonds", BONDS, "", "", "", "", ""] in rows
     assert rows[-1] == [morning_rates.DISCLAIMER]
 
@@ -389,4 +551,4 @@ def test_save_csv_writes_a_dated_file(sources, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     morning_rates.save_csv()
     text = (tmp_path / "morning-sheet-2026-10-09.csv").read_text(encoding="utf-8-sig")
-    assert "9.30%" in text
+    assert "9.26%" in text

@@ -13,10 +13,12 @@ under Government Securities, Auction Result, Treasury Bills:
     LKA09127A158  40,000   71,300    40,192         9.30               9.26
     ...
 
-The morning sheet shows the "Current Auction" rates, dated by the auction.
-Before a rate is shown it is checked against the Ministry's Daily Summary
-Report, whose "Last Primary Auctions" column carries the same rates. If the
-two official documents disagree, that rate is not shown.
+The morning sheet shows the newest auction rates that a second Ministry
+document confirms: the Daily Summary Report, whose "Last Primary Auctions"
+column carries the same rates. Nothing is shown without that check. If the
+two documents disagree, that rate is not shown. Each week there are a few
+hours when the newest result is out but no daily report covers it yet; the
+sheet then shows the auction before, which both documents confirm.
 
 Tested on every result from 2 December 2025 to 14 October 2026: 46 auctions,
 each with one results table. Every table was read, each week's "Last Auction"
@@ -224,24 +226,27 @@ def latest_result() -> tuple[Result, str, Page, date | None]:
 
 def cross_check(
     result: Result, previous: date | None, summary: Summary, report: str
-) -> tuple[dict[int, str], str]:
+) -> tuple[str | None, dict[int, str], str]:
     """Compare the auction rates with the daily report's "Last Primary Auctions" column.
 
     The daily report shows the rates of the latest auction held on or before
     its trading day. If that is this auction, they must equal its "Current
     Auction" rates; if it is the auction before, its "Last Auction" rates.
-    `report` names the daily report in the messages.
+    Only the column compared is confirmed. `report` names the daily report in
+    the messages.
 
-    Returns the disagreements by bill, and one sentence saying what was checked.
+    Returns the column compared ("Current Auction", "Last Auction", or None if
+    the report is too old to confirm either), the disagreements by bill, and
+    one sentence saying what was checked.
     """
     if summary.trades_date >= result.held_on:
         column, compared = 1, "Current Auction"
     elif previous and summary.trades_date >= previous:
         column, compared = 2, "Last Auction"
     else:
-        return {}, (
-            f"Not cross-checked: {report} is for trading on {summary.trades_date}, before "
-            "the last two auctions, so it cannot confirm these rates."
+        return None, {}, (
+            f"{report} is for trading on {summary.trades_date}, before the last two "
+            "auctions, so it cannot confirm any of their rates."
         )
     daily = {DAILY_ROWS[label]: figures[0] for group, label, figures in summary.rows if group == BILLS}
     problems, not_compared = {}, []
@@ -265,4 +270,4 @@ def cross_check(
         )
     if not_compared:
         said += f" Not compared, because the result shows no rate to compare: {', '.join(not_compared)}."
-    return problems, said
+    return compared, problems, said

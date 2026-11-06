@@ -14,6 +14,10 @@
 - GitHub workflows use actions/checkout v5 and actions/setup-python v6 (Node.js 24).
 - New command `sl-economy-sheet` saves the Morning Sheet as `morning-sheet-<date>.csv`, figures written exactly as displayed, with no AI involved.
 - The Ministry of Finance's site gets 20 seconds per attempt instead of 60, so a hung page fails fast and the retry still fits within the sheet's 45-second limit (a page hung for 71 seconds on 16 October 2026).
+- No Treasury bill rate without the double check: if the Ministry's daily report cannot be read, or is too old to confirm either of the last two auctions, no bill rate is shown (it used to show them marked "Not cross-checked today"). Until a daily report covers the newest auction, the sheet shows the auction before it, which the report confirms, dated by that auction and with a note.
+- A section still downloading at 45 seconds now says "Loading, up to 30 seconds" instead of being left out, and the answer says `check_again`. The assistant is told to call once more; that second look waits for the downloads already under way (up to 30 seconds) instead of starting them again. Only one second look: if it is still loading, it says to try again later. `sl-economy-sheet` takes the second look itself.
+- The bill auction result and the daily report are downloaded side by side. The Ministry's site is retried after 10 seconds instead of 5: on 19 October 2026 pages nobody had opened for a while took 6 to 30 seconds the first time and about 1 second after that, which made the first sheet of a session miss the bills.
+- Every download, and every section of the sheet, is timed in the server's log (stderr).
 
 ## 0.1.0 - 2026-10-13
 

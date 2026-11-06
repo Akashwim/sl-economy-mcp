@@ -48,6 +48,14 @@ def test_the_morning_sheet_comes_first_as_plain_text_then_the_data(monkeypatch):
     assert '"date": "2026-10-16"' in blocks[1].text and "## Morning Sheet" not in blocks[1].text
 
 
+def test_the_assistant_is_told_to_take_one_second_look_when_a_section_is_loading():
+    tool = next(tool for tool in asyncio.run(server.mcp.list_tools()) if tool.name == "get_morning_rates")
+    assert '"check_again": true' in tool.description and "once only" in tool.description
+    # The wait the description promises is the one the sheet keeps to.
+    assert f"up to {morning_rates.FOLLOW_UP_SECONDS} seconds" in tool.description
+    assert "check_again" in server.mcp.instructions
+
+
 def test_a_wrong_choice_is_refused_before_any_download(monkeypatch):
     with pytest.raises(ToolError, match="policy"):
         asyncio.run(server.mcp.call_tool("get_interest_rates", {"series": "treasury_bills"}))

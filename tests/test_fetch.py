@@ -112,3 +112,28 @@ def test_plain_numbers_blanks_and_dashes():
     assert [number(cell) for cell in ["11.04", "-0.30", "2,100.00", "7", "", "-"]] == [
         11.04, -0.3, 2100.0, 7.0, None, None,
     ]  # fmt: skip
+
+
+def test_each_download_is_timed_in_the_log_and_nothing_is_printed(fake_internet, caplog, capsys):
+    import logging
+
+    with caplog.at_level(logging.INFO, logger="sl_economy_mcp"):
+        fetch("https://example.test/page")
+    assert caplog.messages[-1].startswith("CBSL: ")
+    assert caplog.messages[-1].endswith(" s, 0 KB: https://example.test/page")
+    assert capsys.readouterr().out == ""  # stdout carries the protocol: never write to it
+
+
+def test_a_failed_download_is_logged_with_its_reason(monkeypatch, caplog):
+    import logging
+
+    monkeypatch.setattr(fetch_module, "_cache", {})
+
+    def bad_gateway(request, timeout):
+        raise urllib.error.HTTPError(request.full_url, 502, "Bad Gateway", {}, None)
+
+    monkeypatch.setattr(fetch_module.urllib.request, "urlopen", bad_gateway)
+    with caplog.at_level(logging.INFO, logger="sl_economy_mcp"), pytest.raises(SourceUnavailable):
+        fetch_module.download("https://example.test/page", site="Sri Lanka's Ministry of Finance")
+    assert "Sri Lanka's Ministry of Finance: failed after " in caplog.messages[-1]
+    assert "HTTP Error 502: Bad Gateway" in caplog.messages[-1]
