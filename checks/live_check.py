@@ -1,8 +1,9 @@
 """Call every tool against the real websites and check the answers look sane.
 
 The normal tests use saved pages, so they cannot notice CBSL or the Ministry
-of Finance changing its website. This script can. GitHub runs it every
-weekday (see .github/workflows/live-check.yml); you can also run it yourself:
+of Finance changing its website. This script can. Run it before each
+release from an ordinary connection (CBSL refuses GitHub's servers, so the
+GitHub workflow in .github/workflows/live-check.yml is started by hand only):
 
     python checks/live_check.py
 
