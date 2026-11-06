@@ -1,6 +1,6 @@
 [project]
 name = "sl-economy-mcp"
-version = "0.1.0"
+version = "0.2.0"
 description = "Unofficial MCP server for live, official Sri Lankan economic data from the Central Bank of Sri Lanka and the Ministry of Finance."
 readme = "README.md"
 requires-python = ">=3.10"

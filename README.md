@@ -66,7 +66,7 @@ There is also one ready-made prompt, **Sri Lanka macro briefing**. Choose it fro
 
 ## Install
 
-**Version note:** the Morning Sheet and the Ministry of Finance data are in the source code here and will be on PyPI from version 0.2.0. Version 0.1.0 on PyPI has the CBSL tools only. To use the Morning Sheet now, install from the source code (the last option below).
+**Version note:** the Morning Sheet and the Ministry of Finance data are in version 0.2.0 and later. Version 0.1.0 had the CBSL tools only.
 
 ### One-click install in Claude's desktop app (Windows or Mac)
 

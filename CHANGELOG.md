@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 - 2026-11-06
 
 - `get_morning_rates`: the Morning Sheet, one finished table with numbered notes. NCPI headline and core inflation, the USD/LKR indicative rate and the banks' buying and selling rates, the weekly prime lending rate (AWPR), and the 91, 182 and 364-day Treasury bill rates from the latest auction. Every label is the source's own wording and is checked against the page, every figure has its own date and says what the date means, daily rates that are not today's are flagged, and a source that cannot be read blanks only its own section.
 - Treasury bill rates come from the Public Debt Management Office's auction results (PDFs) and are shown only if the Ministry of Finance's Daily Summary Report agrees. Tested on every result from December 2025 to October 2026.
