@@ -11,6 +11,7 @@ import logging
 import sys
 from typing import Annotated, Literal
 
+import truststore
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
@@ -246,6 +247,12 @@ def macro_briefing() -> str:
 
 
 def main() -> None:
+    # Trust the certificates the computer itself trusts (as browsers do),
+    # not only the list that came with this copy of Python. Some Pythons ship
+    # an old list that rejects CBSL's Data Library (signed by a newer
+    # authority), and a bank network may inspect secure traffic with its own
+    # certificate, which only the computer's list includes.
+    truststore.inject_into_ssl()
     # Our own log lines (how long each download took) go to stderr, the usual
     # place for a server's own messages, which apps such as Claude's keep in
     # their log for this server. Never to stdout: that carries the protocol.

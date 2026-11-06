@@ -144,7 +144,7 @@ src/sl_economy_mcp/
 Design choices:
 
 - **Live, not stored.** Nothing is saved between runs. A short cache stops repeated questions from hitting the sources again and again: 5 minutes for most pages, an hour for CBSL's slow Data Library tables and for the Ministry's report files, since a new or amended report is published as a new file.
-- **Three outside dependencies:** the official MCP Python SDK, `xlrd` to read the Ministry's old-format Excel report, and `pypdf` to read the auction results. Downloading and reading pages uses Python's standard library.
+- **Four outside dependencies:** the official MCP Python SDK, `xlrd` to read the Ministry's old-format Excel report, `pypdf` to read the auction results, and `truststore`, so that secure connections trust what the computer itself trusts. Downloading and reading pages uses Python's standard library.
 - **Fail loudly.** If a page or file changes shape, the tool says so. It never guesses a number.
 - **Two documents must agree.** Treasury bill rates are read from the auction results and shown only if the Ministry's daily report carries the same rates. The two are downloaded side by side.
 - **Timed.** Every download is timed in the server's log (stderr, never the channel the assistant reads), so a slow website can be named.

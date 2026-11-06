@@ -17,6 +17,7 @@ dependencies = [
     "mcp>=2,<3",
     "xlrd>=2,<3",
     "pypdf>=6,<7",
+    "truststore>=0.10",
 ]
 
 [project.optional-dependencies]

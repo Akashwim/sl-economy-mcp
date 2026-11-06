@@ -1,6 +1,7 @@
 """Tests that the tools are wired into the MCP server correctly."""
 
 import asyncio
+import logging
 
 import pytest
 from mcp.server.mcpserver.exceptions import ToolError, UnexpectedToolError
@@ -99,3 +100,16 @@ def test_tools_without_inputs_say_they_only_give_the_latest_figures():
         assert tools[name].input_schema.get("properties", {}) == {}
         assert "takes no inputs and always gives the latest figures" in " ".join(tools[name].description.split())
     assert "cannot give a sheet for an earlier date" in " ".join(tools["get_morning_rates"].description.split())
+
+
+def test_the_server_trusts_the_computers_own_certificates(monkeypatch):
+    calls = []
+    monkeypatch.setattr(server.truststore, "inject_into_ssl", lambda: calls.append("truststore"))
+    monkeypatch.setattr(server.mcp, "run", lambda: calls.append("run"))
+    ours = logging.getLogger("sl_economy_mcp")
+    before = (list(ours.handlers), ours.propagate, ours.level)
+    try:
+        server.main()
+    finally:  # main() sets up the log for a real run; leave the other tests' logging as it was
+        ours.handlers[:], ours.propagate, ours.level = before[0], before[1], before[2]
+    assert calls == ["truststore", "run"]  # before any page is downloaded
