@@ -154,8 +154,7 @@ def _inflation() -> dict:
             "for": f"{month:%b %Y}" if latest else "none published",
         }
         if month:
-            last_day = date(month.year, month.month, calendar.monthrange(month.year, month.month)[1])
-            late = _late(last_day, "month", "a month's inflation figure, counted from the month's end,")
+            late = _late(_month_end(month.date()), "month", "a month's inflation figure, counted from the month's end,")
             if late:
                 figure["late"] = late
         figures.append(figure)
@@ -215,49 +214,90 @@ def _usd_buy_and_sell() -> dict:
     return _usd(exchange_rates.TT, ["Date", "Buy Rate (LKR)", "Sell Rate (LKR)"], shown=2)
 
 
-# --- The prime lending rate -------------------------------------------------
+# --- Lending and deposit rates ------------------------------------------------
 
 LENDING_TITLE = "Commercial Bank Lending and Deposit Rates ( Per cent per annum )"
 AWPR = "Average Weighted Prime Lending Rate (AWPR)"
+# CBSL's own headings, as printed, typos included ("Weigted"). The deposit
+# rate's second column, "6 months", is never explained by CBSL and is not in
+# its weekly report, so it is not shown.
+AWLR = "Average Weigted Lending Rate (AWLR)"
+AWDR = "Average Weighted Deposit Rate"
+AWFDR = "Average Weighted Fixed Deposit Rate (AWFDR) Rate (% )"
 AWPR_LOOK_BACK_DAYS = 35  # five weeks, so one late or missing week still leaves a figure
+# The monthly rates come out about a month after the month ends and are dated
+# by its last day, so mid-month the latest can be over two months old.
+MONTHLY_LOOK_BACK_DAYS = 100
 
 
-def _prime_lending_rate() -> dict:
+def _lending_and_deposit_rates() -> dict:
     report = interest_rates.REPORTS["lending"]
-    position, _ = report.columns["prime_lending_rate"]
+    # Positions among the table's eight figures: AWLR, AWPR (Weekly, Monthly,
+    # 6 months), AWDR (Monthly, 6 months), AWFDR, AWSR.
+    weekly, lending, deposit, fixed = 1, 0, 4, 6
     today = today_in_sri_lanka()
-    start = today - timedelta(days=AWPR_LOOK_BACK_DAYS)
+    start = today - timedelta(days=MONTHLY_LOOK_BACK_DAYS)
     page = data_library.search(report.report_id, start, today)
-    rows = data_library.parse_grid(page.text, report.title, report.value_columns, {position})
-    weeks = [(day, figures[position]) for day, figures in rows if figures[position] is not None]
-    if not weeks:
-        raise NoData(f"CBSL's Data Library lists no weekly AWPR between {start} and {today}.")
+    rows = data_library.parse_grid(page.text, report.title, report.value_columns, {weekly, lending, deposit, fixed})
 
-    # The table's first row of headings has six cells, and the AWPR one spans
-    # three columns. The second row names those three: Weekly, Monthly, 6 months.
-    # So the first column under AWPR, the one read above, is the weekly rate.
+    # The first row of headings has six cells: End Week, AWLR, AWPR (over
+    # three columns), AWDR (over two), AWFDR, AWSR. The second row names the
+    # columns under AWPR and AWDR: Weekly, Monthly, 6 months, Monthly, 6 months.
     title, groups, kinds = (data_library.heading_rows(page.text) + [[], [], []])[:3]
     _same(title, [LENDING_TITLE], "The title of CBSL's lending rates table")
     _same((len(groups), len(kinds)), (6, 5), "The number of headings in CBSL's lending rates table")
-    _same([groups[2], kinds[0]], [AWPR, "Weekly"], "The prime lending rate headings in CBSL's table")
+    _same(groups[1:5], [AWLR, AWPR, AWDR, AWFDR], "The rate headings in CBSL's lending rates table")
+    _same([kinds[0], kinds[3]], ["Weekly", "Monthly"], "The AWPR and deposit rate column headings in CBSL's table")
+    if not any(figures[p] is not None for _, figures in rows for p in (weekly, lending, deposit, fixed)):
+        raise NoData(f"CBSL's Data Library lists no lending or deposit rates between {start} and {today}.")
 
-    day, rate = weeks[-1]
-    figure = {
-        "label": f"{AWPR}: {kinds[0]}",
-        "value": rate,
-        "date": day.isoformat(),
-        "shown": f"{rate:.2f}%",
-        "for": f"week ending {_day(day)}",
-    }
-    late = _late(day, "week", "the weekly AWPR, counted from the week's end,")
-    if late:
-        figure["late"] = late
+    def latest(position: int, since: date) -> tuple[date, float] | None:
+        found = [(day, figures[position]) for day, figures in rows if day >= since and figures[position] is not None]
+        return found[-1] if found else None
+
+    figures = []
+    week_start = today - timedelta(days=AWPR_LOOK_BACK_DAYS)
+    found = latest(weekly, week_start)
+    figure = {"label": f"{AWPR}: {kinds[0]}", "value": None, "date": None, "shown": "—", "for": "—"}
+    if found:
+        day, rate = found
+        figure.update({"value": rate, "date": day.isoformat(), "shown": f"{rate:.2f}%", "for": f"week ending {_day(day)}"})
+        late = _late(day, "week", "the weekly AWPR, counted from the week's end,")
+        if late:
+            figure["late"] = late
+    else:
+        figure["not_shown_because"] = f"CBSL's Data Library lists no weekly AWPR between {week_start} and {today}."
+    figures.append(figure)
+
+    for position, label in ((lending, AWLR), (deposit, f"{AWDR}: {kinds[3]}"), (fixed, AWFDR)):
+        figure = {"label": label, "value": None, "date": None, "shown": "—", "for": "—"}
+        found = latest(position, start)
+        if not found:
+            figure["not_shown_because"] = f"CBSL's Data Library lists no '{label}' between {start} and {today}."
+        elif found[0] != _month_end(found[0]):
+            # A monthly figure is dated by its month's last day. Any other date
+            # would leave its month unclear, so it is not shown.
+            figure["not_shown_because"] = f"CBSL dates this monthly figure {found[0]}, not the last day of a month."
+        else:
+            day, rate = found
+            figure.update({"value": rate, "date": day.isoformat(), "shown": f"{rate:.2f}%", "for": f"{day:%b %Y}"})
+            late = _late(day, "month", "a monthly bank rate, counted from the month's end,")
+            if late:
+                figure["late"] = late
+        figures.append(figure)
     return {
-        "dates_are": f"the week ending on that day (CBSL's '{groups[0]}' column)",
+        "dates_are": (
+            f"for AWPR, the week ending on that day (CBSL's '{groups[0]}' column); for the "
+            "monthly rates, the month, which CBSL's table dates by its last day"
+        ),
         "unit": "percent per year",
-        "figures": [figure],
+        "figures": figures,
         **page.stamp(data_library.report_url(report.report_id)),
     }
+
+
+def _month_end(day: date) -> date:
+    return date(day.year, day.month, calendar.monthrange(day.year, day.month)[1])
 
 
 # --- Treasury bills -------------------------------------------------------------
@@ -365,11 +405,11 @@ SECTIONS = [
         _usd_buy_and_sell,
     ),
     Section(
-        "Lending rate",
+        "Lending and deposit rates",
         LENDING_TITLE,
         f"{CBSL}, Data Library",
         data_library.report_url(interest_rates.REPORTS["lending"].report_id),
-        _prime_lending_rate,
+        _lending_and_deposit_rates,
     ),
     Section(
         "Treasury bills",

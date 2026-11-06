@@ -123,7 +123,7 @@ def test_every_section_is_there_under_the_sources_own_title(sources):
     result = sheet()
     assert [section["title"] for section in result["sections"]] == TITLES
     assert [section["group"] for section in result["sections"]] == [
-        "Inflation", "US dollar", "US dollar", "Lending rate", "Treasury bills",
+        "Inflation", "US dollar", "US dollar", "Lending and deposit rates", "Treasury bills",
     ]  # fmt: skip
     assert not any("not_available" in section for section in result["sections"])
     assert result["sheet"] == "Morning Sheet"
@@ -168,12 +168,63 @@ def test_daily_rates_that_are_not_todays_say_so(sources, monkeypatch):
     assert "not today" not in by_title[TITLES[4]].get("note", "")
 
 
-def test_prime_lending_rate_is_the_latest_weekly_figure(sources):
+def test_lending_and_deposit_rates_under_cbsls_own_headings(sources):
     section = sheet()["by_title"][TITLES[3]]
-    assert figures(section) == [("Average Weighted Prime Lending Rate (AWPR): Weekly", 11.04, "2026-10-02")]
-    assert shown(section)[0][1:] == ("11.04%", "week ending 2 Oct 2026")
-    assert section["dates_are"] == "the week ending on that day (CBSL's 'End Week' column)"
+    # CBSL's headings exactly as printed, its "Weigted" typo included. The
+    # deposit rate's unexplained "6 months" column (7.13) is not shown.
+    assert figures(section) == [
+        ("Average Weighted Prime Lending Rate (AWPR): Weekly", 11.04, "2026-10-02"),
+        ("Average Weigted Lending Rate (AWLR)", 12.59, "2026-08-31"),
+        ("Average Weighted Deposit Rate: Monthly", 7.52, "2026-08-31"),
+        ("Average Weighted Fixed Deposit Rate (AWFDR) Rate (% )", 9.34, "2026-08-31"),
+    ]
+    assert [row[1:] for row in shown(section)] == [
+        ("11.04%", "week ending 2 Oct 2026"), ("12.59%", "Aug 2026"), ("7.52%", "Aug 2026"), ("9.34%", "Aug 2026"),
+    ]  # fmt: skip
+    assert "7.13" not in str(section)
+    assert section["dates_are"].startswith("for AWPR, the week ending on that day (CBSL's 'End Week' column)")
     assert section["source_url"].endswith("ReportId=6277")
+
+
+@pytest.mark.parametrize(
+    "old, new",
+    [
+        ("Average Weigted Lending Rate (AWLR)", "Average Weighted Lending Rate (AWLR)"),
+        ("Average Weighted Deposit Rate", "Average Weighted Savings Rate"),
+        ("Average Weighted Fixed Deposit Rate (AWFDR) Rate (% )", "Average Weighted Fixed Deposit Rate (AWFDR)"),
+    ],
+)
+def test_a_changed_rate_heading_blanks_the_section(sources, old, new):
+    import re
+
+    spaced = r"\s+".join(map(re.escape, old.split()))  # CBSL breaks long headings across lines
+    assert len(re.findall(spaced, sources["lending"])) == 1, old
+    sources["lending"] = re.sub(spaced, new, sources["lending"])
+    section = sheet()["by_title"][TITLES[3]]
+    assert "figures" not in section and "rate headings" in section["not_available"]
+
+
+def test_deposit_columns_in_another_order_are_refused(sources):
+    swapped = sources["lending"].replace(">Weekly<", ">Monthly<", 1)
+    sources["lending"] = swapped
+    section = sheet()["by_title"][TITLES[3]]
+    assert "figures" not in section and "column headings" in section["not_available"]
+
+
+def test_a_missing_monthly_rate_blanks_only_its_own_row(sources):
+    assert sources["lending"].count("9.34</td>") == 1
+    sources["lending"] = sources["lending"].replace("9.34</td>", "</td>")
+    section = sheet()["by_title"][TITLES[3]]
+    assert [figure["shown"] for figure in section["figures"]] == ["11.04%", "12.59%", "7.52%", "—"]
+    assert "lists no 'Average Weighted Fixed Deposit Rate (AWFDR) Rate (% )'" in section["figures"][3]["not_shown_because"]
+
+
+def test_a_monthly_rate_not_dated_at_a_month_end_is_not_shown(sources):
+    assert sources["lending"].count("2026-08-31</td>") == 1
+    sources["lending"] = sources["lending"].replace("2026-08-31</td>", "2026-08-30</td>")
+    section = sheet()["by_title"][TITLES[3]]
+    assert [figure["shown"] for figure in section["figures"][1:]] == ["—", "—", "—"]
+    assert section["figures"][1]["not_shown_because"] == "CBSL dates this monthly figure 2026-08-30, not the last day of a month."
 
 
 def test_treasury_bills_are_the_newest_auction_rates_once_the_daily_report_confirms_them(sources, monkeypatch):
@@ -310,7 +361,10 @@ def test_the_table_is_one_sheet_with_notes(sources):
     assert f"| **Inflation** | {NCPI}: Headline Inflation (Y-o-Y) | 8.10% | Aug 2026 |" in table
     assert "| **US dollar** | 1 USD -> LKR | 330.9617 | 9 Oct 2026 |" in table
     assert "|  | Buy Rate (LKR) | 326.4384 | 9 Oct 2026 |" in table
-    assert "| **Lending rate** | Average Weighted Prime Lending Rate (AWPR): Weekly | 11.04% | week ending 2 Oct 2026 |" in table
+    assert "| **Lending and deposit rates** | Average Weighted Prime Lending Rate (AWPR): Weekly | 11.04% | week ending 2 Oct 2026 |" in table
+    assert "|  | Average Weigted Lending Rate (AWLR) | 12.59% | Aug 2026 |" in table
+    assert "|  | Average Weighted Deposit Rate: Monthly | 7.52% | Aug 2026 |" in table
+    assert "|  | Average Weighted Fixed Deposit Rate (AWFDR) Rate (% ) | 9.34% | Aug 2026 |" in table
     assert "| **Treasury bills** (note 1) | 91 days | 9.26% | auction of 7 Oct 2026 ⚠ (note 2) |" in table
     assert f"| **Treasury bonds** | {BONDS} | — | — | — |" in table
     assert "| **FD ceiling rate** | Still in development. Until then, please refer to the team's existing source. |" in table
@@ -334,7 +388,7 @@ def test_the_table_says_when_a_section_is_not_available(sources, monkeypatch):
 
     monkeypatch.setattr(data_library, "search", down)
     table = sheet()["table"]
-    assert "| **Lending rate** | Not available just now (note 1) | — | — |" in table
+    assert "| **Lending and deposit rates** | Not available just now (note 1) | — | — |" in table
     assert "\n1. CBSL's Data Library did not answer after two tries." in table
 
 
@@ -384,7 +438,7 @@ def test_no_dollar_rate_in_the_last_two_weeks_is_said_plainly(sources):
 def test_no_weekly_rate_in_five_weeks_is_said_plainly(sources):
     sources["lending"] = saved("library_lending_empty.html")
     section = sheet()["by_title"][TITLES[3]]
-    assert "lists no weekly AWPR between 2026-09-04 and 2026-10-09" in section["not_available"]
+    assert section["not_available"] == "CBSL's Data Library lists no lending or deposit rates between 2026-07-01 and 2026-10-09."
 
 
 def test_a_bug_is_not_dressed_up_as_a_missing_section(sources, monkeypatch):
@@ -567,14 +621,14 @@ def test_figures_of_a_normal_age_carry_no_warning(sources):
     "today, title, age",
     [
         (date(2026, 11, 15), TITLES[0], 76),  # August's inflation, from 31 Aug
-        (date(2026, 10, 24), TITLES[3], 22),  # AWPR for the week ending 2 Oct
+        (date(2026, 10, 24), TITLES[3], 22),  # AWPR for the week ending 2 Oct (the monthly rates are not late)
         (date(2026, 10, 24), TITLES[4], 17),  # the auction of 7 Oct
     ],
 )
 def test_a_figure_older_than_usual_is_shown_but_flagged(sources, monkeypatch, today, title, age):
     monkeypatch.setattr(morning_rates, "today_in_sri_lanka", lambda: today)
     section = sheet()["by_title"][title]
-    for figure in section["figures"]:
+    for figure in section["figures"][:1] if title == TITLES[3] else section["figures"]:
         assert figure["value"] is not None  # still the source's latest, so still shown
         assert figure["late"].startswith("Older than usual:")
         assert f"this one is {age} days old" in figure["late"]
@@ -633,3 +687,11 @@ def test_in_early_january_both_ministry_lists_fall_back_to_last_year(sources, mo
     assert [figure["shown"] for figure in section["figures"]] == ["9.26%", "9.44%", "9.95%"]
     assert section["cross_check"].startswith("Checked:")
     assert all(figure["late"].startswith("Older than usual") for figure in section["figures"])  # saved pages are from October
+
+
+def test_monthly_bank_rates_older_than_usual_are_flagged(sources, monkeypatch):
+    monkeypatch.setattr(morning_rates, "today_in_sri_lanka", lambda: date(2026, 11, 15))  # 76 days after 31 Aug
+    section = sheet()["by_title"][TITLES[3]]
+    for figure in section["figures"][1:]:
+        assert figure["value"] is not None
+        assert "a monthly bank rate, counted from the month's end, is normally no more than 75 days old" in figure["late"]

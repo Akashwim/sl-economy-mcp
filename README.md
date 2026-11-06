@@ -17,7 +17,7 @@ Every call fetches fresh data from the source, and every answer says where each 
 | --- | --- | --- |
 | Inflation | NCPI headline and core inflation, year on year, each for the month it measures | CBSL, Measures of Consumer Price Inflation (compiled by the Department of Census and Statistics) |
 | US dollar | CBSL's indicative USD/LKR spot rate, and the banks' average buying and selling rates at 9.30 a.m. | CBSL, Daily Indicative Exchange Rates and Daily Buy and Sell Exchange Rates |
-| Lending rate | The weekly Average Weighted Prime Lending Rate (AWPR) | CBSL Data Library |
+| Lending and deposit rates | The weekly Average Weighted Prime Lending Rate (AWPR), and the monthly average lending (AWLR), deposit (AWDR) and fixed deposit (AWFDR) rates | CBSL Data Library |
 | Treasury bills | The 91, 182 and 364-day weighted average yield rates at the latest auction, dated by the auction | PDMO auction results, checked against the Ministry of Finance's Daily Summary Report |
 | Treasury bonds | Not shown yet: to be developed with a primary dealer | |
 | FD ceiling rate | Not shown yet: there is no official figure to check a calculation against | |
