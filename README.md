@@ -68,7 +68,23 @@ There is also one ready-made prompt, **Sri Lanka macro briefing**. Choose it fro
 
 **Version note:** the Morning Sheet and the Ministry of Finance data are in the source code here and will be on PyPI from version 0.2.0. Version 0.1.0 on PyPI has the CBSL tools only. To use the Morning Sheet now, install from the source code (the last option below).
 
-In each case, quit Claude completely before changing its settings file, because the running app can overwrite it. **Settings → Developer → Edit Config** shows you where the file is.
+### One-click install in Claude's desktop app (Windows or Mac)
+
+The easiest way, with nothing else to install: double-click the extension file `sl-economy-mcp-<version>.mcpb` and choose **Install** in Claude's desktop app. It appears under **Settings → Extensions** as "Sri Lanka Economy". Claude's app then downloads its own copy of [uv](https://docs.astral.sh/uv/), which downloads Python 3.14 and the exact versions of the add-ons this version was tested with (pinned in `uv.lock`). This takes under a minute the first time.
+
+- The computer must be able to reach github.com and pypi.org during installation.
+- On a company Claude plan, an administrator may have to allow extensions that are not from Anthropic's directory.
+- To update, install the newer file the same way.
+
+To make the file from the source code, with any Python 3.10 or newer:
+
+```bash
+python extension/build.py
+```
+
+It is saved in the `dist` folder. See the top of `extension/build.py` for what goes into it and why.
+
+For the options below, quit Claude completely before changing its settings file, because the running app can overwrite it. **Settings → Developer → Edit Config** shows you where the file is.
 
 ### If you have uv
 
