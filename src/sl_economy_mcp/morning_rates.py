@@ -262,6 +262,11 @@ def _lending_and_deposit_rates() -> dict:
 
     def latest(position: int, since: date) -> tuple[date, float] | None:
         found = [(day, figures[position]) for day, figures in rows if day >= since and figures[position] is not None]
+        if found and found[-1][1] <= 0:  # a bank rate of nothing or less is a mistyped cell, not a rate
+            raise PageChanged(
+                f"CBSL's lending rates table shows {found[-1][1]} as a rate for {found[-1][0]}, "
+                "which cannot be right, so this section is not shown."
+            )
         return found[-1] if found else None
 
     figures = []

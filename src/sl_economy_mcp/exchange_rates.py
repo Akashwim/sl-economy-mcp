@@ -102,6 +102,8 @@ def _number(text: str) -> float:
     value = number(text)
     if value is None:
         raise ValueError("no figure")
+    if value <= 0:  # no currency is worth nothing or less: a mistyped page, not a rate
+        raise ValueError(f"not a positive rate: {text!r}")
     return value
 
 

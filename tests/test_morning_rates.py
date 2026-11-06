@@ -790,3 +790,13 @@ def test_the_sheet_says_which_version_made_it(sources):
     result = sheet()
     assert result["version"] == __version__
     assert f"*sl-economy-mcp {__version__}*" in result["table"]
+
+
+@pytest.mark.parametrize("typo", ["0.00", "-11.04"])
+def test_a_bank_rate_of_zero_or_below_blanks_the_section(sources, typo):
+    import re
+
+    assert len(re.findall(r">\s*11\.04\s*<", sources["lending"])) == 1
+    sources["lending"] = re.sub(r">(\s*)11\.04(\s*)<", rf">\g<1>{typo}\g<2><", sources["lending"])
+    section = sheet()["by_title"][TITLES[4]]
+    assert "figures" not in section and "which cannot be right" in section["not_available"]

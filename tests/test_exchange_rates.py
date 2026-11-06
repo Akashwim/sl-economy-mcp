@@ -214,3 +214,10 @@ def test_history_warns_when_range_reaches_into_patchy_years(fake_cbsl):
 def test_history_rejects_dates_the_wrong_way_round(fake_cbsl):
     with pytest.raises(InvalidRequest, match="on or before"):
         fx.get_exchange_rate_history("USD", "2026-10-09", "2026-10-01")
+
+
+@pytest.mark.parametrize("typo", ["0.0000", "-330.9617"])
+def test_a_rate_of_zero_or_below_is_refused_not_shown(typo):
+    page = (FIXTURES / "indicative_USD_2026-10-01_to_09.html").read_text(encoding="utf-8").replace("330.9617", typo)
+    with pytest.raises(PageChanged, match="Unexpected row"):
+        fx.parse_rate_table(page, fx.INDICATIVE.heading)
