@@ -234,6 +234,9 @@ AWPR_LOOK_BACK_DAYS = 35  # five weeks, so one late or missing week still leaves
 # The monthly rates come out about a month after the month ends and are dated
 # by its last day, so mid-month the latest can be over two months old.
 MONTHLY_LOOK_BACK_DAYS = 100
+# A monthly figure's date must fall in its month's last week: in two years of
+# CBSL's table (Nov 2024 to Sep 2026) every one was 0 to 3 days before the end.
+LAST_WORKING_DAY_WITHIN = 7
 
 
 def _lending_and_deposit_rates() -> dict:
@@ -280,21 +283,22 @@ def _lending_and_deposit_rates() -> dict:
         found = latest(position, start)
         if not found:
             figure["not_shown_because"] = f"CBSL's Data Library lists no '{label}' between {start} and {today}."
-        elif found[0] != _month_end(found[0]):
-            # A monthly figure is dated by its month's last day. Any other date
-            # would leave its month unclear, so it is not shown.
-            figure["not_shown_because"] = f"CBSL dates this monthly figure {found[0]}, not the last day of a month."
+        elif (_month_end(found[0]) - found[0]).days >= LAST_WORKING_DAY_WITHIN:
+            # CBSL dates a monthly figure by its month's last working day (29 May
+            # 2026, as 31 May was a Sunday; 28 Mar 2025, before a holiday). Any
+            # date earlier in a month would leave its month unclear, so it is not shown.
+            figure["not_shown_because"] = f"CBSL dates this monthly figure {found[0]}, not at the end of a month."
         else:
             day, rate = found
             figure.update({"value": rate, "date": day.isoformat(), "shown": f"{rate:.2f}%", "for": f"{day:%b %Y}"})
-            late = _late(day, "month", "a monthly bank rate, counted from the month's end,")
+            late = _late(_month_end(day), "month", "a monthly bank rate, counted from the month's end,")
             if late:
                 figure["late"] = late
         figures.append(figure)
     return {
         "dates_are": (
             f"for AWPR, the week ending on that day (CBSL's '{groups[0]}' column); for the "
-            "monthly rates, the month, which CBSL's table dates by its last day"
+            "monthly rates, the month, which CBSL's table dates by its last working day"
         ),
         "unit": "percent per year",
         "figures": figures,

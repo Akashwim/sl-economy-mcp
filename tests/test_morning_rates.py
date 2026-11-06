@@ -222,12 +222,19 @@ def test_a_missing_monthly_rate_blanks_only_its_own_row(sources):
     assert "lists no 'Average Weighted Fixed Deposit Rate (AWFDR) Rate (% )'" in section["figures"][3]["not_shown_because"]
 
 
-def test_a_monthly_rate_not_dated_at_a_month_end_is_not_shown(sources):
+def test_a_monthly_rate_dated_on_its_months_last_working_day_is_that_months(sources):
+    # As CBSL did for May 2026: 29 May, because 31 May was a Sunday.
     assert sources["lending"].count("2026-08-31</td>") == 1
-    sources["lending"] = sources["lending"].replace("2026-08-31</td>", "2026-08-30</td>")
+    sources["lending"] = sources["lending"].replace("2026-08-31</td>", "2026-08-28</td>")
+    section = sheet()["by_title"][TITLES[4]]
+    assert [row[1:] for row in shown(section)[1:]] == [("12.59%", "Aug 2026"), ("7.52%", "Aug 2026"), ("9.34%", "Aug 2026")]
+
+
+def test_a_monthly_rate_dated_earlier_in_a_month_is_not_shown(sources):
+    sources["lending"] = sources["lending"].replace("2026-08-31</td>", "2026-08-24</td>")
     section = sheet()["by_title"][TITLES[4]]
     assert [figure["shown"] for figure in section["figures"][1:]] == ["—", "—", "—"]
-    assert section["figures"][1]["not_shown_because"] == "CBSL dates this monthly figure 2026-08-30, not the last day of a month."
+    assert section["figures"][1]["not_shown_because"] == "CBSL dates this monthly figure 2026-08-24, not at the end of a month."
 
 
 def test_treasury_bills_are_the_newest_auction_rates_once_the_daily_report_confirms_them(sources, monkeypatch):
